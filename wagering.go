@@ -33,3 +33,7 @@ func average(odds ...Odds) Odds {
 	avg := sum / float64(len(odds))
 	return NewOddsFromDecimal(avg)
 }
+
+func (odds Odds) probability() float64 {
+	return 1 / odds.decimalOdds * 100.0
+}
