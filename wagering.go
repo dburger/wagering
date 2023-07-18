@@ -34,6 +34,19 @@ func average(odds ...Odds) Odds {
 	return NewOddsFromDecimal(avg)
 }
 
-func (odds Odds) probability() float64 {
-	return 1 / odds.decimalOdds * 100.0
+func (odds Odds) impliedProb() Probability {
+	return NewProbabilityFromDecimal(1 / odds.decimalOdds)
+}
+
+type Probability struct {
+	decimal float64
+	percent float64
+}
+
+func NewProbabilityFromPercent(percent float64) Probability {
+	return Probability{percent / 100.0, percent}
+}
+
+func NewProbabilityFromDecimal(decimal float64) Probability {
+	return Probability{decimal, decimal * 100.0}
 }

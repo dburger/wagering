@@ -45,7 +45,7 @@ func TestConvertDecimal(t *testing.T) {
 	}
 }
 
-func TestProbability(t *testing.T) {
+func TestImpliedProbability(t *testing.T) {
 	var expectedProbabilities = []struct {
 		odds Odds
 		prob float64
@@ -59,6 +59,16 @@ func TestProbability(t *testing.T) {
 		{NewOddsFromDecimal(1.1), 90.90},
 	}
 	for _, ep := range expectedProbabilities {
-		assert.InDeltaf(t, ep.prob, ep.odds.probability(), 0.01, "converting decimal %v", ep.odds.decimalOdds)
+		assert.InDeltaf(t, ep.prob, ep.odds.impliedProb().percent, 0.01, "converting decimal %v", ep.odds.decimalOdds)
 	}
+}
+
+func TestProbabilityConstruction(t *testing.T) {
+	prob := NewProbabilityFromDecimal(0.5)
+	assert.Equal(t, 0.5, prob.decimal)
+	assert.Equal(t, 50.0, prob.percent)
+
+	prob = NewProbabilityFromPercent(50.0)
+	assert.Equal(t, 0.5, prob.decimal)
+	assert.Equal(t, 50.0, prob.percent)
 }
