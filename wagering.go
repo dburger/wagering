@@ -38,6 +38,10 @@ func (odds Odds) impliedProb() Probability {
 	return NewProbabilityFromDecimal(1 / odds.decimalOdds)
 }
 
+func (odds Odds) expectedValuePercent(prob Probability) float64 {
+	return prob.decimal*(odds.decimalOdds-1.0) - (1.0 - prob.decimal)
+}
+
 type Probability struct {
 	decimal float64
 	percent float64

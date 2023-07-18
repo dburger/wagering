@@ -63,6 +63,18 @@ func TestImpliedProbability(t *testing.T) {
 	}
 }
 
+func TestExpectedValuePercent(t *testing.T) {
+	odds := NewOddsFromAmerican(-110.0)
+	prob := NewProbabilityFromPercent(50.0)
+	ev := odds.expectedValuePercent(prob)
+	assert.InDeltaf(t, -0.0455, ev, 0.001, "expected value of %v at %v% probability", odds.americanOdds, prob.percent)
+
+	odds = NewOddsFromAmerican(+180.0)
+	prob = NewProbabilityFromPercent(30.0)
+	ev = odds.expectedValuePercent(prob)
+	assert.InDeltaf(t, -0.16, ev, 0.001, "expected value of %v at %v% probability", odds.americanOdds, prob.percent)
+}
+
 func TestProbabilityConstruction(t *testing.T) {
 	prob := NewProbabilityFromDecimal(0.5)
 	assert.Equal(t, 0.5, prob.decimal)
