@@ -70,7 +70,7 @@ func (odds Odds) ImpliedProb() Probability {
 	return NewProbabilityFromDecimal(1 / odds.decimalOdds)
 }
 
-func (odds Odds) expectedValuePercent(prob Probability) float64 {
+func (odds Odds) ExpectedValuePercent(prob Probability) float64 {
 	return prob.decimal*(odds.decimalOdds-1.0) - (1.0 - prob.decimal)
 }
 
