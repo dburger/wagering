@@ -63,6 +63,15 @@ func TestImpliedProbability(t *testing.T) {
 	}
 }
 
+func TestOddsEquals(t *testing.T) {
+	odds1 := NewOddsFromDecimal(1.5)
+	odds2 := NewOddsFromDecimal(1.5)
+	odds3 := NewOddsFromDecimal(2.0)
+
+	assert.True(t, odds1.Equals(odds2))
+	assert.False(t, odds2.Equals(odds3))
+}
+
 func TestExpectedValuePercent(t *testing.T) {
 	odds := NewOddsFromAmerican(-110.0)
 	prob := NewProbabilityFromPercent(50.0)
