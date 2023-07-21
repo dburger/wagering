@@ -25,6 +25,7 @@ func NewOddsFromDecimal(decimalOdds float64) Odds {
 	return Odds{decimalOdds: decimalOdds, americanOdds: americanOdds}
 }
 
+// TODO(dburger): test
 func Average(odds ...Odds) Odds {
 	sum := 0.0
 	for _, odd := range odds {
@@ -32,6 +33,11 @@ func Average(odds ...Odds) Odds {
 	}
 	avg := sum / float64(len(odds))
 	return NewOddsFromDecimal(avg)
+}
+
+// TODO(dburger): test
+func (odds Odds) longerThan(other Odds) bool {
+	return odds.decimalOdds > other.decimalOdds
 }
 
 func (odds Odds) impliedProb() Probability {
