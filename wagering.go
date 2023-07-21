@@ -36,6 +36,23 @@ func Average(odds ...Odds) Odds {
 }
 
 // TODO(dburger): test
+func TrueOddsNormalized(odds ...Odds) []Odds {
+	probs := []Probability{}
+	for _, o := range odds {
+		probs = append(probs, o.impliedProb())
+	}
+	probSum := 0.0
+	for _, p := range probs {
+		probSum += p.decimal
+	}
+	norms := []Odds{}
+	for _, o := range odds {
+		norms = append(norms, NewOddsFromDecimal(o.decimalOdds*probSum))
+	}
+	return norms
+}
+
+// TODO(dburger): test
 func (odds Odds) LongerThan(other Odds) bool {
 	return odds.decimalOdds > other.decimalOdds
 }
