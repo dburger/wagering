@@ -59,7 +59,7 @@ func TestImpliedProbability(t *testing.T) {
 		{NewOddsFromDecimal(1.1), 90.90},
 	}
 	for _, ep := range expectedProbabilities {
-		assert.InDeltaf(t, ep.prob, ep.odds.impliedProb().percent, 0.01, "converting decimal %v", ep.odds.decimalOdds)
+		assert.InDeltaf(t, ep.prob, ep.odds.ImpliedProb().percent, 0.01, "converting decimal %v", ep.odds.decimalOdds)
 	}
 }
 

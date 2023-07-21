@@ -39,7 +39,7 @@ func Average(odds ...Odds) Odds {
 func TrueOddsNormalized(odds ...Odds) []Odds {
 	probs := []Probability{}
 	for _, o := range odds {
-		probs = append(probs, o.impliedProb())
+		probs = append(probs, o.ImpliedProb())
 	}
 	probSum := 0.0
 	for _, p := range probs {
@@ -52,7 +52,6 @@ func TrueOddsNormalized(odds ...Odds) []Odds {
 	return norms
 }
 
-// TODO(dburger): test
 func (odds Odds) Equals(other Odds) bool {
 	return odds.decimalOdds == other.decimalOdds
 }
@@ -67,7 +66,7 @@ func (odds Odds) Shorter(other Odds) bool {
 	return odds.decimalOdds < other.decimalOdds
 }
 
-func (odds Odds) impliedProb() Probability {
+func (odds Odds) ImpliedProb() Probability {
 	return NewProbabilityFromDecimal(1 / odds.decimalOdds)
 }
 
