@@ -36,7 +36,7 @@ func Average(odds ...Odds) Odds {
 }
 
 // TODO(dburger): test
-func (odds Odds) longerThan(other Odds) bool {
+func (odds Odds) LongerThan(other Odds) bool {
 	return odds.decimalOdds > other.decimalOdds
 }
 
