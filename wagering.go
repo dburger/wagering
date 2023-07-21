@@ -25,7 +25,7 @@ func NewOddsFromDecimal(decimalOdds float64) Odds {
 	return Odds{decimalOdds: decimalOdds, americanOdds: americanOdds}
 }
 
-func average(odds ...Odds) Odds {
+func Average(odds ...Odds) Odds {
 	sum := 0.0
 	for _, odd := range odds {
 		sum += odd.decimalOdds
