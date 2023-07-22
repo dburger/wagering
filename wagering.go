@@ -26,13 +26,26 @@ func NewOddsFromDecimal(decimalOdds float64) Odds {
 }
 
 // TODO(dburger): test
-func Average(odds ...Odds) Odds {
-	sum := 0.0
-	for _, odd := range odds {
-		sum += odd.decimalOdds
+type AverageOdds struct {
+	sum   float64
+	count int
+}
+
+func (ao *AverageOdds) accumulate(odds ...Odds) {
+	for _, o := range odds {
+		ao.sum += o.decimalOdds
+		ao.count++
 	}
-	avg := sum / float64(len(odds))
-	return NewOddsFromDecimal(avg)
+}
+
+func (ao *AverageOdds) average() Odds {
+	return NewOddsFromDecimal(ao.sum / float64(ao.count))
+}
+
+func (ao *AverageOdds) averageOddsWithout(odds Odds, count int) Odds {
+	sum := ao.sum - (odds.decimalOdds * float64(count))
+	decimalOdds := sum / float64(ao.count-count)
+	return NewOddsFromDecimal(decimalOdds)
 }
 
 // TODO(dburger): test
