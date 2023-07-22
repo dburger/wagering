@@ -31,18 +31,22 @@ type AverageOdds struct {
 	count int
 }
 
-func (ao *AverageOdds) accumulate(odds ...Odds) {
+func NewAverageOdds() AverageOdds {
+	return AverageOdds{}
+}
+
+func (ao *AverageOdds) Accumulate(odds ...Odds) {
 	for _, o := range odds {
 		ao.sum += o.decimalOdds
 		ao.count++
 	}
 }
 
-func (ao *AverageOdds) average() Odds {
+func (ao *AverageOdds) Average() Odds {
 	return NewOddsFromDecimal(ao.sum / float64(ao.count))
 }
 
-func (ao *AverageOdds) averageOddsWithout(odds Odds, count int) Odds {
+func (ao *AverageOdds) AverageWithout(odds Odds, count int) Odds {
 	sum := ao.sum - (odds.decimalOdds * float64(count))
 	decimalOdds := sum / float64(ao.count-count)
 	return NewOddsFromDecimal(decimalOdds)
