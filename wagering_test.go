@@ -93,3 +93,22 @@ func TestProbabilityConstruction(t *testing.T) {
 	assert.Equal(t, 0.5, prob.decimal)
 	assert.Equal(t, 50.0, prob.percent)
 }
+
+func dummyAverageOdds() AverageOdds {
+	ao := AverageOdds{}
+	ao.Accumulate(NewOddsFromDecimal(3.0))
+	ao.Accumulate(NewOddsFromDecimal(5.0))
+	ao.Accumulate(NewOddsFromDecimal(7.0))
+	return ao
+}
+
+func TestAverageOdds(t *testing.T) {
+	ao := dummyAverageOdds()
+	assert.Equal(t, 5.0, ao.Average().decimalOdds)
+}
+
+func TestAverageOdds_AverageWithout(t *testing.T) {
+	ao := dummyAverageOdds()
+	assert.Equal(t, 4.0, ao.AverageWithout(NewOddsFromDecimal(7.0), 1).decimalOdds)
+	assert.Equal(t, 10.0, ao.AverageWithout(NewOddsFromDecimal(2.5), 2).decimalOdds)
+}

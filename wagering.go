@@ -25,7 +25,6 @@ func NewOddsFromDecimal(decimalOdds float64) Odds {
 	return Odds{decimalOdds: decimalOdds, americanOdds: americanOdds}
 }
 
-// TODO(dburger): test
 type AverageOdds struct {
 	sum   float64
 	count int
