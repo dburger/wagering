@@ -72,6 +72,22 @@ func TestOddsEquals(t *testing.T) {
 	assert.False(t, odds2.Equals(odds3))
 }
 
+func TestOdds_Longer(t *testing.T) {
+	odds1 := NewOddsFromDecimal(1.5)
+	odds2 := NewOddsFromDecimal(1.5)
+	odds3 := NewOddsFromDecimal(2.0)
+	assert.True(t, odds3.Longer(odds1))
+	assert.False(t, odds2.Longer(odds1))
+}
+
+func TestOdds_Shorter(t *testing.T) {
+	odds1 := NewOddsFromDecimal(1.5)
+	odds2 := NewOddsFromDecimal(1.5)
+	odds3 := NewOddsFromDecimal(2.0)
+	assert.True(t, odds1.Shorter(odds3))
+	assert.False(t, odds1.Shorter(odds2))
+}
+
 func TestExpectedValuePercent(t *testing.T) {
 	odds := NewOddsFromAmerican(-110.0)
 	prob := NewProbabilityFromPercent(50.0)
@@ -111,4 +127,25 @@ func TestAverageOdds_AverageWithout(t *testing.T) {
 	ao := dummyAverageOdds()
 	assert.Equal(t, 4.0, ao.AverageWithout(NewOddsFromDecimal(7.0), 1).decimalOdds)
 	assert.Equal(t, 10.0, ao.AverageWithout(NewOddsFromDecimal(2.5), 2).decimalOdds)
+}
+
+func TestTrueOddsNormalized(t *testing.T) {
+	odds1 := NewOddsFromAmerican(-110)
+	trueOdds := TrueOddsNormalized(odds1, odds1)
+	assert.Equal(t, 100.0, trueOdds[0].americanOdds)
+	assert.Equal(t, 100.0, trueOdds[1].americanOdds)
+
+	odds2 := NewOddsFromAmerican(-121)
+	odds3 := NewOddsFromAmerican(160)
+	trueOdds = TrueOddsNormalized(odds2, odds3)
+	assert.InDeltaf(t, -142.35, trueOdds[0].americanOdds, 0.005, "expected value of %v from %v/%v", odds2.americanOdds, odds2.americanOdds, odds3.americanOdds)
+	assert.InDeltaf(t, +142.35, trueOdds[1].americanOdds, 0.005, "expected value of %v from %v/%v", odds3.americanOdds, odds2.americanOdds, odds3.americanOdds)
+
+	odds1 = NewOddsFromDecimal(2)
+	odds2 = NewOddsFromDecimal(3)
+	odds3 = NewOddsFromDecimal(4)
+	trueOdds = TrueOddsNormalized(odds1, odds2, odds3)
+	assert.InDeltaf(t, 2.17, trueOdds[0].decimalOdds, 0.005, "expoected value of %v from %v/%v/%v", odds1.decimalOdds, odds1.decimalOdds, odds2.decimalOdds, odds3.decimalOdds)
+	assert.InDeltaf(t, 3.25, trueOdds[1].decimalOdds, 0.005, "expoected value of %v from %v/%v/%v", odds2.decimalOdds, odds1.decimalOdds, odds2.decimalOdds, odds3.decimalOdds)
+	assert.InDeltaf(t, 4.33, trueOdds[2].decimalOdds, 0.005, "expoected value of %v from %v/%v/%v", odds3.decimalOdds, odds1.decimalOdds, odds2.decimalOdds, odds3.decimalOdds)
 }

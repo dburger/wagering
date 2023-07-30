@@ -51,7 +51,6 @@ func (ao *AverageOdds) AverageWithout(odds Odds, count int) Odds {
 	return NewOddsFromDecimal(decimalOdds)
 }
 
-// TODO(dburger): test
 func TrueOddsNormalized(odds ...Odds) []Odds {
 	probs := []Probability{}
 	for _, o := range odds {
@@ -72,12 +71,10 @@ func (odds Odds) Equals(other Odds) bool {
 	return odds.decimalOdds == other.decimalOdds
 }
 
-// TODO(dburger): test
 func (odds Odds) Longer(other Odds) bool {
 	return odds.decimalOdds > other.decimalOdds
 }
 
-// TODO(dburger): test
 func (odds Odds) Shorter(other Odds) bool {
 	return odds.decimalOdds < other.decimalOdds
 }
