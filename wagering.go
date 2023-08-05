@@ -1,5 +1,7 @@
 package wagering
 
+import "math"
+
 type Odds struct {
 	decimalOdds  float64
 	americanOdds float64
@@ -65,6 +67,17 @@ func TrueOddsNormalized(odds ...Odds) []Odds {
 		norms = append(norms, NewOddsFromDecimal(o.decimalOdds*probSum))
 	}
 	return norms
+}
+
+func (odds Odds) KellyPercent(prob Probability, mult float64) float64 {
+	profitMult := odds.decimalOdds - 1.0
+	kelly := (profitMult*prob.decimal - (1.00 - prob.decimal)) / profitMult
+	percent := mult * kelly
+	return math.Max(percent, 0.0)
+}
+
+func (odds Odds) KellyStake(prob Probability, mult, stake float64) float64 {
+	return odds.KellyPercent(prob, mult) * stake
 }
 
 func (odds Odds) Equals(other Odds) bool {
