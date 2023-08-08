@@ -36,11 +36,12 @@ func NewAverageOdds() AverageOdds {
 	return AverageOdds{}
 }
 
-func (ao *AverageOdds) Accumulate(odds ...Odds) {
+func (ao *AverageOdds) Accumulate(odds ...Odds) *AverageOdds {
 	for _, o := range odds {
 		ao.sum += o.decimalOdds
 		ao.count++
 	}
+	return ao
 }
 
 func (ao *AverageOdds) Average() Odds {
