@@ -108,6 +108,20 @@ func TestExpectedValuePercent(t *testing.T) {
 	assert.InDeltaf(t, -0.16, ev, 0.001, "expected value of %v at %v% probability", odds.americanOdds, prob.percent)
 }
 
+func TestMarketWidth(t *testing.T) {
+	odds1 := NewOddsFromAmerican(-141.0)
+	odds2 := NewOddsFromAmerican(+123.0)
+	assert.Equal(t, 18.0, MarketWidth(odds1, odds2))
+
+	odds1 = NewOddsFromAmerican(-110.0)
+	odds2 = NewOddsFromAmerican(-114.0)
+	assert.Equal(t, 24.0, MarketWidth(odds1, odds2))
+
+	odds1 = NewOddsFromAmerican(+150.0)
+	odds2 = NewOddsFromAmerican(+137.0)
+	assert.Equal(t, -87.0, MarketWidth(odds1, odds2))
+}
+
 func TestProbabilityConstruction(t *testing.T) {
 	prob := NewProbabilityFromDecimal(0.5)
 	assert.Equal(t, 0.5, prob.decimal)
@@ -119,7 +133,7 @@ func TestProbabilityConstruction(t *testing.T) {
 }
 
 func dummyAverageOdds() AverageOdds {
-	ao := AverageOdds{}
+	ao := NewAverageOdds()
 	ao.Accumulate(NewOddsFromDecimal(3.0))
 	ao.Accumulate(NewOddsFromDecimal(5.0))
 	ao.Accumulate(NewOddsFromDecimal(7.0))

@@ -100,6 +100,17 @@ func (odds Odds) ExpectedValuePercent(prob Probability) float64 {
 	return prob.decimal*(odds.decimalOdds-1.0) - (1.0 - prob.decimal)
 }
 
+func MarketWidth(odds1, odds2 Odds) float64 {
+	if odds1.americanOdds < 0 && odds2.americanOdds < 0 {
+		return math.Abs(odds1.americanOdds) + math.Abs(odds2.americanOdds) - 200.0
+	} else if odds1.americanOdds > 0 && odds2.americanOdds > 0 {
+		// My own concoction, both positive becomes a negative market width.
+		return -(odds1.americanOdds + odds2.americanOdds - 200.0)
+	} else {
+		return math.Abs(math.Abs(odds1.americanOdds) - math.Abs(odds2.americanOdds))
+	}
+}
+
 type Probability struct {
 	decimal float64
 	percent float64
