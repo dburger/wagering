@@ -69,6 +69,14 @@ func TrueOddsNormalized(odds ...Odds) []Odds {
 	return norms
 }
 
+func (odds Odds) American() float64 {
+	return odds.americanOdds
+}
+
+func (odds Odds) Decimal() float64 {
+	return odds.decimalOdds
+}
+
 func (odds Odds) KellyPercent(prob Probability, mult float64) float64 {
 	profitMult := odds.decimalOdds - 1.0
 	kelly := (profitMult*prob.decimal - (1.00 - prob.decimal)) / profitMult
