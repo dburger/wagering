@@ -115,7 +115,7 @@ func MarketWidth(odds1, odds2 Odds) float64 {
 		// My own concoction, both positive becomes a negative market width.
 		return -(odds1.americanOdds + odds2.americanOdds - 200.0)
 	} else {
-		return math.Abs(math.Abs(odds1.americanOdds) - math.Abs(odds2.americanOdds))
+		return math.Abs(odds1.americanOdds + odds2.americanOdds)
 	}
 }
 
