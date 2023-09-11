@@ -143,8 +143,10 @@ func (odds Odds) ImpliedProb() Probability {
 	return NewProbabilityFromDecimal(1 / odds.decimalOdds)
 }
 
-// TODO(dburger): is this a percent?
-func (odds Odds) ExpectedValuePercent(prob Probability) float64 {
+// ExpectedValueFraction returns the long term expected value when wagering odds
+// at the given probability. The result is given as the fraction of increase or
+// decrease (negative) of the wager.
+func (odds Odds) ExpectedValueFraction(prob Probability) float64 {
 	return prob.decimal*(odds.decimalOdds-1.0) - (1.0 - prob.decimal)
 }
 
