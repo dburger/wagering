@@ -8,7 +8,7 @@ Typical usage:
 	multiplier := 0.3
 	bankroll := 10000.0
 	odds := wagering.NewOddsFromAmerican(-110.0)
-	wager := odds.KellyFraction(likelihood, multiplier) * bankroll
+	wager := odds.KellyStake(likelihood, multiplier, bankroll)
 
 Note that when odds are constructed from american or decimal odds, that value is
 held explicitly and the other format is computed but may suffer from minor rounding
