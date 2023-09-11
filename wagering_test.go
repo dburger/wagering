@@ -63,12 +63,20 @@ func TestImpliedProbability(t *testing.T) {
 	}
 }
 
+func TestOdds_KellyFraction(t *testing.T) {
+	odds := NewOddsFromDecimal(2.0)
+	prob := NewProbabilityFromDecimal(0.6)
+	mult := 1.0
+	fraction := odds.KellyFraction(prob, mult)
+	assert.InDeltaf(t, 0.2, fraction, 0.01, "calculating kelly value for %v decimal odds with prob %v and multiplier %v", odds.decimalOdds, prob.percent, mult)
+}
+
 func TestOdds_KellyStake(t *testing.T) {
 	odds := NewOddsFromAmerican(200.0)
 	prob := NewProbabilityFromPercent(60.0)
 	mult := 0.25
-	kelly := odds.KellyStake(prob, mult, 1000.00)
-	assert.InDeltaf(t, 100, kelly, 0.1, "calculating kelly for %v decimal odds with prob %v and multiplier %v", odds.decimalOdds, prob.percent, mult)
+	wager := odds.KellyStake(prob, mult, 1000.00)
+	assert.InDeltaf(t, 100, wager, 0.1, "calculating wager for %v decimal odds with prob %v and multiplier %v", odds.decimalOdds, prob.percent, mult)
 }
 
 func TestOdds_Equals(t *testing.T) {

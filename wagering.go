@@ -8,7 +8,7 @@ Typical usage:
 	    multiplier := 0.3
 	    bankroll := 10000.0
 		odds := wagering.NewOddsFromAmerican(-110.0)
-	    wager := odds.KellyPercent(likelihood, multiplier) * bankroll
+	    wager := odds.KellyFraction(likelihood, multiplier) * bankroll
 
 Note that when odds are constructed from american or decimal odds, that value is
 held explicitly and the other format is computed but may suffer from minor rounding
@@ -105,9 +105,10 @@ func (odds Odds) Decimal() float64 {
 	return odds.decimalOdds
 }
 
-// TODO(dburger): Rename me. This isn't a percent.
+// KellyFraction returns the fraction of the bankroll to wager given the probability
+// for success and kelly multiplier.
 // https://en.wikipedia.org/wiki/Kelly_criterion
-func (odds Odds) KellyPercent(prob Probability, mult float64) float64 {
+func (odds Odds) KellyFraction(prob Probability, mult float64) float64 {
 	profitMult := odds.decimalOdds - 1.0
 	kelly := (profitMult*prob.decimal - (1.00 - prob.decimal)) / profitMult
 	percent := mult * kelly
@@ -118,7 +119,7 @@ func (odds Odds) KellyPercent(prob Probability, mult float64) float64 {
 // kelly multiplier, and total bankroll.
 // https://en.wikipedia.org/wiki/Kelly_criterion
 func (odds Odds) KellyStake(prob Probability, mult, bankroll float64) float64 {
-	return odds.KellyPercent(prob, mult) * bankroll
+	return odds.KellyFraction(prob, mult) * bankroll
 }
 
 // Equals returns whether odds is equal to the given odds.
