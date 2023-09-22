@@ -199,3 +199,60 @@ func NewProbabilityFromPercent(percent float64) Probability {
 func NewProbabilityFromDecimal(decimal float64) Probability {
 	return Probability{decimal, decimal * 100.0}
 }
+
+func OddsRatioOdds(odds ...Odds) []Odds {
+	calc := func(probs []float64, margin float64, c float64, odds []Odds) {
+		for i, o := range odds {
+			probs[i] = 1 / (c*o.decimalOdds + 1 - c)
+		}
+	}
+	return trueOdds(odds, 1.0, calc)
+}
+
+func LogarithmicOdds(odds ...Odds) []Odds {
+	calc := func(probs []float64, margin float64, c float64, odds []Odds) {
+		for i, o := range odds {
+			probs[i] = math.Pow(1.0/o.decimalOdds, c)
+		}
+	}
+	return trueOdds(odds, 1.0, calc)
+}
+
+func trueOdds(odds []Odds, c float64, calc func([]float64, float64, float64, []Odds)) []Odds {
+	m := margin(odds...)
+	n := len(odds)
+	p := make([]float64, n)
+	pd := make([]float64, n)
+	eps := math.Pow(10, -6)
+	delta := math.Pow(10, -6)
+
+	eqn := 1.0
+	sump := 0.0
+
+	for math.Abs(eqn) > eps || sump > 1 {
+		calc(p, m, c, odds)
+
+		sump = 0.0
+		for _, v := range p {
+			sump += v
+		}
+		eqn = sump - 1.0
+
+		calc(pd, m, c+delta, odds)
+
+		sumpd := 0.0
+		for _, v := range pd {
+			sumpd += v
+		}
+
+		eqnd := sumpd - 1.0
+		c = c - eqn/((eqnd-eqn)/delta)
+	}
+
+	var norms []Odds
+	for _, p := range p {
+		norms = append(norms, NewOddsFromDecimal(1/p))
+	}
+
+	return norms
+}

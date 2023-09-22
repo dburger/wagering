@@ -187,3 +187,19 @@ func TestMPTOOdds(t *testing.T) {
 	assert.Equal(t, 3.6883, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8786, round(trueOdds[2].decimalOdds, 4))
 }
+
+func TestOddsRatioOdds(t *testing.T) {
+	odds := sampleOdds()
+	trueOdds := OddsRatioOdds(odds...)
+	assert.Equal(t, 2.1285, round(trueOdds[0].decimalOdds, 4))
+	assert.Equal(t, 3.6814, round(trueOdds[1].decimalOdds, 4))
+	assert.Equal(t, 3.8678, round(trueOdds[2].decimalOdds, 4))
+}
+
+func TestLogarithmicOdds(t *testing.T) {
+	odds := sampleOdds()
+	trueOdds := LogarithmicOdds(odds...)
+	assert.Equal(t, 2.1230, round(trueOdds[0].decimalOdds, 4))
+	assert.Equal(t, 3.6888, round(trueOdds[1].decimalOdds, 4))
+	assert.Equal(t, 3.8778, round(trueOdds[2].decimalOdds, 4))
+}
