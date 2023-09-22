@@ -200,6 +200,15 @@ func NewProbabilityFromDecimal(decimal float64) Probability {
 	return Probability{decimal, decimal * 100.0}
 }
 
+func ShinOdds(odds ...Odds) []Odds {
+	calc := func(probs []float64, margin float64, c float64, odds []Odds) {
+		for i, o := range odds {
+			probs[i] = (math.Sqrt(math.Pow(c, 2.0)+4.0*(1.0-c)*(math.Pow(1.0/o.decimalOdds, 2))/(margin+1)) - c) / (2 * (1 - c))
+		}
+	}
+	return trueOdds(odds, 0.0, calc)
+}
+
 func OddsRatioOdds(odds ...Odds) []Odds {
 	calc := func(probs []float64, margin float64, c float64, odds []Odds) {
 		for i, o := range odds {
