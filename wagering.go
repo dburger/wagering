@@ -78,9 +78,9 @@ func (ao *AverageOdds) AverageWithout(odds Odds, count int) Odds {
 	return NewOddsFromDecimal(decimalOdds)
 }
 
-// TrueOddsNormalized gives the odds of the given Odds using the method of simple normalization.
-func TrueOddsNormalized(odds ...Odds) []Odds {
-	probs := []Probability{}
+// probSum returns the summation of the implied probabilities for the given odds.
+func probSum(odds ...Odds) float64 {
+	var probs []Probability
 	for _, o := range odds {
 		probs = append(probs, o.ImpliedProb())
 	}
@@ -88,9 +88,29 @@ func TrueOddsNormalized(odds ...Odds) []Odds {
 	for _, p := range probs {
 		probSum += p.decimal
 	}
-	norms := []Odds{}
+	return probSum
+}
+
+func margin(odds ...Odds) float64 {
+	return probSum(odds...) - 1.0
+}
+
+// EqualMarginOdds gives the odds of the given Odds using the method of simple normalization.
+func EqualMarginOdds(odds ...Odds) []Odds {
+	probSum := probSum(odds...)
+	var norms []Odds
 	for _, o := range odds {
 		norms = append(norms, NewOddsFromDecimal(o.decimalOdds*probSum))
+	}
+	return norms
+}
+
+func MPTOOdds(odds ...Odds) []Odds {
+	n := float64(len(odds))
+	m := margin(odds...)
+	var norms []Odds
+	for _, o := range odds {
+		norms = append(norms, NewOddsFromDecimal((n*o.decimalOdds)/(n-m*o.decimalOdds)))
 	}
 	return norms
 }

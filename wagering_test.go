@@ -2,6 +2,7 @@ package wagering
 
 import (
 	"github.com/stretchr/testify/assert"
+	"math"
 	"testing"
 )
 
@@ -159,23 +160,30 @@ func TestAverageOdds_AverageWithout(t *testing.T) {
 	assert.Equal(t, 10.0, ao.AverageWithout(NewOddsFromDecimal(2.5), 2).decimalOdds)
 }
 
-func TestTrueOddsNormalized(t *testing.T) {
-	odds1 := NewOddsFromAmerican(-110)
-	trueOdds := TrueOddsNormalized(odds1, odds1)
-	assert.Equal(t, 100.0, trueOdds[0].americanOdds)
-	assert.Equal(t, 100.0, trueOdds[1].americanOdds)
+func round(value float64, places uint) float64 {
+	mult := math.Pow(10, float64(places))
+	return math.Round(value*mult) / mult
+}
 
-	odds2 := NewOddsFromAmerican(-121)
-	odds3 := NewOddsFromAmerican(160)
-	trueOdds = TrueOddsNormalized(odds2, odds3)
-	assert.InDeltaf(t, -142.35, trueOdds[0].americanOdds, 0.005, "expected value of %v from %v/%v", odds2.americanOdds, odds2.americanOdds, odds3.americanOdds)
-	assert.InDeltaf(t, +142.35, trueOdds[1].americanOdds, 0.005, "expected value of %v from %v/%v", odds3.americanOdds, odds2.americanOdds, odds3.americanOdds)
+// sampleOdds returns the Odds from the example at
+// https://winnerodds.com/valuebettingblog/true-odds-calculator/
+// for win, draw, win for Real Madrid versus Aletico de Madrid.
+func sampleOdds() []Odds {
+	return []Odds{NewOddsFromDecimal(2.09), NewOddsFromDecimal(3.59), NewOddsFromDecimal(3.77)}
+}
 
-	odds1 = NewOddsFromDecimal(2)
-	odds2 = NewOddsFromDecimal(3)
-	odds3 = NewOddsFromDecimal(4)
-	trueOdds = TrueOddsNormalized(odds1, odds2, odds3)
-	assert.InDeltaf(t, 2.17, trueOdds[0].decimalOdds, 0.005, "expoected value of %v from %v/%v/%v", odds1.decimalOdds, odds1.decimalOdds, odds2.decimalOdds, odds3.decimalOdds)
-	assert.InDeltaf(t, 3.25, trueOdds[1].decimalOdds, 0.005, "expoected value of %v from %v/%v/%v", odds2.decimalOdds, odds1.decimalOdds, odds2.decimalOdds, odds3.decimalOdds)
-	assert.InDeltaf(t, 4.33, trueOdds[2].decimalOdds, 0.005, "expoected value of %v from %v/%v/%v", odds3.decimalOdds, odds1.decimalOdds, odds2.decimalOdds, odds3.decimalOdds)
+func TestEqualMarginOdds(t *testing.T) {
+	odds := sampleOdds()
+	trueOdds := EqualMarginOdds(odds...)
+	assert.Equal(t, 2.1365, round(trueOdds[0].decimalOdds, 4))
+	assert.Equal(t, 3.6700, round(trueOdds[1].decimalOdds, 4))
+	assert.Equal(t, 3.8540, round(trueOdds[2].decimalOdds, 4))
+}
+
+func TestMPTOOdds(t *testing.T) {
+	odds := sampleOdds()
+	trueOdds := MPTOOdds(odds...)
+	assert.Equal(t, 2.1229, round(trueOdds[0].decimalOdds, 4))
+	assert.Equal(t, 3.6883, round(trueOdds[1].decimalOdds, 4))
+	assert.Equal(t, 3.8786, round(trueOdds[2].decimalOdds, 4))
 }
