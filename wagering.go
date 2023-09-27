@@ -105,6 +105,17 @@ func EqualMarginOdds(odds ...Odds) []Odds {
 	return norms
 }
 
+func AdditiveOdds(odds ...Odds) []Odds {
+	n := float64(len(odds))
+	m := margin(odds...)
+	var norms []Odds
+	for _, o := range odds {
+		prob := 1/o.decimalOdds - m/n
+		norms = append(norms, NewOddsFromDecimal(1/prob))
+	}
+	return norms
+}
+
 func MPTOOdds(odds ...Odds) []Odds {
 	n := float64(len(odds))
 	m := margin(odds...)
