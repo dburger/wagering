@@ -95,37 +95,6 @@ func margin(odds ...Odds) float64 {
 	return probSum(odds...) - 1.0
 }
 
-// EqualMarginOdds gives the odds of the given Odds using the method of simple normalization.
-func EqualMarginOdds(odds ...Odds) []Odds {
-	probSum := probSum(odds...)
-	var norms []Odds
-	for _, o := range odds {
-		norms = append(norms, NewOddsFromDecimal(o.decimalOdds*probSum))
-	}
-	return norms
-}
-
-func AdditiveOdds(odds ...Odds) []Odds {
-	n := float64(len(odds))
-	m := margin(odds...)
-	var norms []Odds
-	for _, o := range odds {
-		prob := 1/o.decimalOdds - m/n
-		norms = append(norms, NewOddsFromDecimal(1/prob))
-	}
-	return norms
-}
-
-func MPTOOdds(odds ...Odds) []Odds {
-	n := float64(len(odds))
-	m := margin(odds...)
-	var norms []Odds
-	for _, o := range odds {
-		norms = append(norms, NewOddsFromDecimal((n*o.decimalOdds)/(n-m*o.decimalOdds)))
-	}
-	return norms
-}
-
 // American returns the american odds.
 func (odds Odds) American() float64 {
 	return odds.americanOdds
@@ -209,6 +178,43 @@ func NewProbabilityFromPercent(percent float64) Probability {
 // NewProbabilityFromDecimal constructs a Probability from the given decimal.
 func NewProbabilityFromDecimal(decimal float64) Probability {
 	return Probability{decimal, decimal * 100.0}
+}
+
+// Pro bettor nishikori says:
+// in Football, the methods that seem to come closest to the true odds are
+// "Margin proportional to odds" and "Logarithmic", whereas in Tennis are
+// the "Odds ratio" and ""Margin proportional to odds".
+
+// EqualMarginOdds gives the odds of the given Odds using the method of simple normalization.
+func EqualMarginOdds(odds ...Odds) []Odds {
+	probSum := probSum(odds...)
+	var norms []Odds
+	for _, o := range odds {
+		norms = append(norms, NewOddsFromDecimal(o.decimalOdds*probSum))
+	}
+	return norms
+}
+
+func AdditiveOdds(odds ...Odds) []Odds {
+	n := float64(len(odds))
+	m := margin(odds...)
+	var norms []Odds
+	for _, o := range odds {
+		prob := 1/o.decimalOdds - m/n
+		norms = append(norms, NewOddsFromDecimal(1/prob))
+	}
+	return norms
+}
+
+// MPToOdds implements the "margin proportional to odds" approach.
+func MPToOdds(odds ...Odds) []Odds {
+	n := float64(len(odds))
+	m := margin(odds...)
+	var norms []Odds
+	for _, o := range odds {
+		norms = append(norms, NewOddsFromDecimal((n*o.decimalOdds)/(n-m*o.decimalOdds)))
+	}
+	return norms
 }
 
 func ShinOdds(odds ...Odds) []Odds {
