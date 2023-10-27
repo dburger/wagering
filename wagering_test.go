@@ -190,7 +190,7 @@ func TestAdditiveOdds(t *testing.T) {
 
 func TestMPTOOdds(t *testing.T) {
 	odds := sampleOdds()
-	trueOdds := MPToOdds(odds...)
+	trueOdds := MPTOdds(odds...)
 	assert.Equal(t, 2.1229, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6883, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8786, round(trueOdds[2].decimalOdds, 4))

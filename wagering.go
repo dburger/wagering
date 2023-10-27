@@ -206,8 +206,8 @@ func AdditiveOdds(odds ...Odds) []Odds {
 	return norms
 }
 
-// MPToOdds implements the "margin proportional to odds" approach.
-func MPToOdds(odds ...Odds) []Odds {
+// MPTOdds implements the "margin proportional to odds" approach.
+func MPTOdds(odds ...Odds) []Odds {
 	n := float64(len(odds))
 	m := margin(odds...)
 	var norms []Odds
