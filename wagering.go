@@ -226,6 +226,7 @@ func ShinOdds(odds ...Odds) []Odds {
 	return trueOdds(odds, 0.0, calc)
 }
 
+// https://www.sportstradingnetwork.com/article/fixed-odds-betting-traditional-odds/
 func OddsRatioOdds(odds ...Odds) []Odds {
 	calc := func(probs []float64, margin float64, c float64, odds []Odds) {
 		for i, o := range odds {
