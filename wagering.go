@@ -16,7 +16,9 @@ skew.
 */
 package wagering
 
-import "math"
+import (
+	"math"
+)
 
 type Odds struct {
 	decimalOdds  float64
@@ -78,12 +80,17 @@ func (ao *AverageOdds) AverageWithout(odds Odds, count int) Odds {
 	return NewOddsFromDecimal(decimalOdds)
 }
 
-// probSum returns the summation of the implied probabilities for the given odds.
-func probSum(odds ...Odds) float64 {
+func probs(odds ...Odds) []Probability {
 	var probs []Probability
 	for _, o := range odds {
 		probs = append(probs, o.ImpliedProb())
 	}
+	return probs
+}
+
+// probSum returns the summation of the implied probabilities for the given odds.
+func probSum(odds ...Odds) float64 {
+	probs := probs(odds...)
 	probSum := 0.0
 	for _, p := range probs {
 		probSum += p.decimal
@@ -217,13 +224,38 @@ func MPTOdds(odds ...Odds) []Odds {
 	return norms
 }
 
+// Largely taken from https://github.com/mberk/shin.
 func ShinOdds(odds ...Odds) []Odds {
-	calc := func(probs []float64, margin float64, c float64, odds []Odds) {
-		for i, o := range odds {
-			probs[i] = (math.Sqrt(math.Pow(c, 2.0)+4.0*(1.0-c)*(math.Pow(1.0/o.decimalOdds, 2))/(margin+1)) - c) / (2 * (1 - c))
+	// TODO(dburger): if n == 2 use additive
+	n := len(odds)
+	probs := probs(odds...)
+	overround := probSum(odds...)
+	delta := math.MaxFloat64
+	convergenceThreshold := 1e-12
+	z := 0.0
+	iterations := 0
+	maxIterations := 1000
+
+	for delta > convergenceThreshold && iterations < maxIterations {
+		z0 := z
+		z = -2.0
+		for _, p := range probs {
+			z += math.Sqrt(math.Pow(z0, 2) + 4*(1-z0)*math.Pow(p.decimal, 2)/overround)
 		}
+
+		// why isn't this division by zero on a two banger?
+		z /= (float64(n) - 2.0)
+		delta = math.Abs(z - z0)
+		iterations++
 	}
-	return trueOdds(odds, 0.0, calc)
+
+	// Now use z to make the true odds.
+	var norms []Odds
+	for _, p := range probs {
+		prob := (math.Sqrt(math.Pow(z, 2)+4*(1-z)*math.Pow(p.decimal, 2)/overround) - z) / (2 * (1 - z))
+		norms = append(norms, NewOddsFromDecimal(1/prob))
+	}
+	return norms
 }
 
 // https://www.sportstradingnetwork.com/article/fixed-odds-betting-traditional-odds/

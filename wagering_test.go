@@ -165,56 +165,61 @@ func round(value float64, places uint) float64 {
 	return math.Round(value*mult) / mult
 }
 
-// sampleOdds returns the Odds from the example at
+// sampleOdds1 returns the Odds from the example at
 // https://winnerodds.com/valuebettingblog/true-odds-calculator/
 // for win, draw, win for Real Madrid versus Aletico de Madrid.
-func sampleOdds() []Odds {
+func sampleOdds1() []Odds {
 	return []Odds{NewOddsFromDecimal(2.09), NewOddsFromDecimal(3.59), NewOddsFromDecimal(3.77)}
 }
 
+// sampleOdds2 returns the Odds from the tests at
+// https://github.com/mberk/shin/blob/master/tests/test_shin.py.
+func sampleOdds2() []Odds {
+	return []Odds{NewOddsFromDecimal(2.6), NewOddsFromDecimal(2.4), NewOddsFromDecimal(4.3)}
+}
+
 func TestEqualMarginOdds(t *testing.T) {
-	odds := sampleOdds()
-	trueOdds := EqualMarginOdds(odds...)
+	trueOdds := EqualMarginOdds(sampleOdds1()...)
 	assert.Equal(t, 2.1365, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6700, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8540, round(trueOdds[2].decimalOdds, 4))
 }
 
 func TestAdditiveOdds(t *testing.T) {
-	odds := sampleOdds()
-	trueOdds := AdditiveOdds(odds...)
+	trueOdds := AdditiveOdds(sampleOdds1()...)
 	assert.Equal(t, 2.1229, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6883, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8786, round(trueOdds[2].decimalOdds, 4))
 }
 
 func TestMPTOOdds(t *testing.T) {
-	odds := sampleOdds()
-	trueOdds := MPTOdds(odds...)
+	trueOdds := MPTOdds(sampleOdds1()...)
 	assert.Equal(t, 2.1229, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6883, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8786, round(trueOdds[2].decimalOdds, 4))
 }
 
 func TestShinOdds(t *testing.T) {
-	odds := sampleOdds()
-	trueOdds := ShinOdds(odds...)
+	trueOdds := ShinOdds(sampleOdds1()...)
 	assert.Equal(t, 2.1264, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6836, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8723, round(trueOdds[2].decimalOdds, 4))
+
+	trueOdds = ShinOdds(sampleOdds2()...)
+	assert.Equal(t, 0.3729941, round(trueOdds[0].ImpliedProb().decimal, 7))
+	assert.Equal(t, 0.4047794, round(trueOdds[1].ImpliedProb().decimal, 7))
+	assert.Equal(t, 0.2222265, round(trueOdds[2].ImpliedProb().decimal, 7))
 }
 
 func TestOddsRatioOdds(t *testing.T) {
-	odds := sampleOdds()
-	trueOdds := OddsRatioOdds(odds...)
+	trueOdds := OddsRatioOdds(sampleOdds1()...)
 	assert.Equal(t, 2.1285, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6814, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8678, round(trueOdds[2].decimalOdds, 4))
 }
 
 func TestLogarithmicOdds(t *testing.T) {
-	odds := sampleOdds()
-	trueOdds := LogarithmicOdds(odds...)
+	trueOdds := LogarithmicOdds(sampleOdds1()...)
 	assert.Equal(t, 2.1230, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6888, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8778, round(trueOdds[2].decimalOdds, 4))
