@@ -260,12 +260,30 @@ func ShinOdds(odds ...Odds) []Odds {
 
 // https://www.sportstradingnetwork.com/article/fixed-odds-betting-traditional-odds/
 func OddsRatioOdds(odds ...Odds) []Odds {
-	calc := func(probs []float64, margin float64, c float64, odds []Odds) {
-		for i, o := range odds {
-			probs[i] = 1 / (c*o.decimalOdds + 1 - c)
+	delta := math.MaxFloat64
+	convergenceThreshold := 1e-12
+	diff := 0.0
+	c := 1.0
+	iterations := 0
+	maxIterations := 1000
+	for delta > convergenceThreshold && iterations < maxIterations {
+		c -= diff
+		sum := 0.0
+		for _, o := range odds {
+			sum += 1 / (c*o.decimalOdds + 1 - c)
 		}
+		diff = 1.0 - sum
+		delta = math.Abs(diff)
+		iterations++
 	}
-	return trueOdds(odds, 1.0, calc)
+
+	// Now use c to make the true odds.
+	var trueOdds []Odds
+	for _, o := range odds {
+		trueOdds = append(trueOdds, NewOddsFromDecimal(1/(1/(c*o.decimalOdds+1-c))))
+	}
+	return trueOdds
+
 }
 
 func LogarithmicOdds(odds ...Odds) []Odds {
@@ -278,11 +296,11 @@ func LogarithmicOdds(odds ...Odds) []Odds {
 	maxIterations := 1000
 	for delta > convergenceThreshold && iterations < maxIterations {
 		c -= diff
-		v := 0.0
+		sum := 0.0
 		for _, p := range probs {
-			v += math.Pow(p.decimal, c)
+			sum += math.Pow(p.decimal, c)
 		}
-		diff = 1.0 - v
+		diff = 1.0 - sum
 		delta = math.Abs(diff)
 		iterations++
 	}
@@ -293,43 +311,4 @@ func LogarithmicOdds(odds ...Odds) []Odds {
 		trueOdds = append(trueOdds, NewOddsFromDecimal(1.0/math.Pow(p.decimal, c)))
 	}
 	return trueOdds
-}
-
-func trueOdds(odds []Odds, c float64, calc func([]float64, float64, float64, []Odds)) []Odds {
-	m := margin(odds...)
-	n := len(odds)
-	p := make([]float64, n)
-	pd := make([]float64, n)
-	eps := math.Pow(10, -6)
-	delta := math.Pow(10, -6)
-
-	eqn := 1.0
-	sump := 0.0
-
-	for math.Abs(eqn) > eps || sump > 1 {
-		calc(p, m, c, odds)
-
-		sump = 0.0
-		for _, v := range p {
-			sump += v
-		}
-		eqn = sump - 1.0
-
-		calc(pd, m, c+delta, odds)
-
-		sumpd := 0.0
-		for _, v := range pd {
-			sumpd += v
-		}
-
-		eqnd := sumpd - 1.0
-		c = c - eqn/((eqnd-eqn)/delta)
-	}
-
-	var norms []Odds
-	for _, p := range p {
-		norms = append(norms, NewOddsFromDecimal(1/p))
-	}
-
-	return norms
 }
