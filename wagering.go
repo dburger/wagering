@@ -250,12 +250,12 @@ func ShinOdds(odds ...Odds) []Odds {
 	}
 
 	// Now use z to make the true odds.
-	var norms []Odds
+	var trueOdds []Odds
 	for _, p := range probs {
 		prob := (math.Sqrt(math.Pow(z, 2)+4*(1-z)*math.Pow(p.decimal, 2)/overround) - z) / (2 * (1 - z))
-		norms = append(norms, NewOddsFromDecimal(1/prob))
+		trueOdds = append(trueOdds, NewOddsFromDecimal(1/prob))
 	}
-	return norms
+	return trueOdds
 }
 
 // https://www.sportstradingnetwork.com/article/fixed-odds-betting-traditional-odds/
@@ -269,12 +269,30 @@ func OddsRatioOdds(odds ...Odds) []Odds {
 }
 
 func LogarithmicOdds(odds ...Odds) []Odds {
-	calc := func(probs []float64, margin float64, c float64, odds []Odds) {
-		for i, o := range odds {
-			probs[i] = math.Pow(1.0/o.decimalOdds, c)
+	probs := probs(odds...)
+	delta := math.MaxFloat64
+	convergenceThreshold := 1e-12
+	diff := 0.0
+	c := 1.0
+	iterations := 0
+	maxIterations := 1000
+	for delta > convergenceThreshold && iterations < maxIterations {
+		c -= diff
+		v := 0.0
+		for _, p := range probs {
+			v += math.Pow(p.decimal, c)
 		}
+		diff = 1.0 - v
+		delta = math.Abs(diff)
+		iterations++
 	}
-	return trueOdds(odds, 1.0, calc)
+
+	// Now use c to make the true odds.
+	var trueOdds []Odds
+	for _, p := range probs {
+		trueOdds = append(trueOdds, NewOddsFromDecimal(1.0/math.Pow(p.decimal, c)))
+	}
+	return trueOdds
 }
 
 func trueOdds(odds []Odds, c float64, calc func([]float64, float64, float64, []Odds)) []Odds {
