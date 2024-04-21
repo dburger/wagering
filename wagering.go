@@ -192,6 +192,12 @@ func NewProbabilityFromDecimal(decimal float64) Probability {
 // "Margin proportional to odds" and "Logarithmic", whereas in Tennis are
 // the "Odds ratio" and ""Margin proportional to odds".
 
+// For further reading on these algorithms to determine "true odds" see the
+// following resources:
+// https://www.football-data.co.uk/The_Wisdom_of_the_Crowd_updated.pdf
+// https://outlier.bet/wp-content/uploads/2023/08/2017-clarke-adjusting_bookmakers_odds.pdf
+// https://winnerodds.com/valuebettingblog/true-odds-calculator/
+
 // EqualMarginOdds gives the odds of the given Odds using the method of simple normalization.
 func EqualMarginOdds(odds ...Odds) []Odds {
 	probSum := probSum(odds...)
@@ -202,6 +208,7 @@ func EqualMarginOdds(odds ...Odds) []Odds {
 	return norms
 }
 
+// AdditiveOdds gives the odds of the given Odds by removing equal amounts of the margin.
 func AdditiveOdds(odds ...Odds) []Odds {
 	n := float64(len(odds))
 	m := margin(odds...)
