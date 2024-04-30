@@ -150,11 +150,18 @@ func (odds Odds) ImpliedProb() Probability {
 	return NewProbabilityFromDecimal(1 / odds.decimalOdds)
 }
 
-// ExpectedValueFraction returns the long term expected value when wagering odds
-// at the given probability. The result is given as the fraction of increase or
+// ExpectedValueProb returns the long term expected value when wagering odds
+// at the given probability. The result is given as the percent increase or
 // decrease (negative) of the wager.
-func (odds Odds) ExpectedValueFraction(prob Probability) float64 {
+func (odds Odds) ExpectedValueProb(prob Probability) float64 {
 	return prob.decimal*(odds.decimalOdds-1.0) - (1.0 - prob.decimal)
+}
+
+// ExpectedValueOdds returns the long term expected value when wagering odds
+// at the given true odds.  The result is given as the percent increase or
+// decrease (negative) of the wager.
+func (odds Odds) ExpectedValueOdds(trueOdds Odds) float64 {
+	return odds.ExpectedValueProb(trueOdds.ImpliedProb())
 }
 
 // MarketWidth returns the market width between the given odds.

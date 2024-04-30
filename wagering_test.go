@@ -105,16 +105,28 @@ func TestOdds_Shorter(t *testing.T) {
 	assert.False(t, odds1.Shorter(odds2))
 }
 
-func TestExpectedValuePercent(t *testing.T) {
+func TestOdds_ExpectedValueProb(t *testing.T) {
 	odds := NewOddsFromAmerican(-110.0)
 	prob := NewProbabilityFromPercent(50.0)
-	ev := odds.ExpectedValueFraction(prob)
+	ev := odds.ExpectedValueProb(prob)
 	assert.InDeltaf(t, -0.0455, ev, 0.001, "expected value of %v at %v% probability", odds.americanOdds, prob.percent)
 
 	odds = NewOddsFromAmerican(+180.0)
 	prob = NewProbabilityFromPercent(30.0)
-	ev = odds.ExpectedValueFraction(prob)
+	ev = odds.ExpectedValueProb(prob)
 	assert.InDeltaf(t, -0.16, ev, 0.001, "expected value of %v at %v% probability", odds.americanOdds, prob.percent)
+}
+
+func TestOdds_ExpectedValueOdds(t *testing.T) {
+	odds := NewOddsFromAmerican(-110.0)
+	trueOdds := NewOddsFromAmerican(+100.0)
+	ev := odds.ExpectedValueOdds(trueOdds)
+	assert.InDeltaf(t, -0.0455, ev, 0.001, "expected value of %v at %v% odds", odds.americanOdds, trueOdds.Decimal())
+
+	odds = NewOddsFromAmerican(+180.0)
+	trueOdds = NewOddsFromAmerican(+233.0)
+	ev = odds.ExpectedValueOdds(trueOdds)
+	assert.InDeltaf(t, -0.16, ev, 0.001, "expected value of %v at %v% odds", odds.americanOdds, trueOdds.Decimal())
 }
 
 func TestMarketWidth(t *testing.T) {
