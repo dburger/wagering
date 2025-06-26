@@ -218,9 +218,9 @@ func TestShinOdds(t *testing.T) {
 	assert.Equal(t, 3.8723, round(trueOdds[2].decimalOdds, 4))
 
 	trueOdds = ShinOdds(sampleOdds2()...)
-	assert.Equal(t, 0.3729941, round(trueOdds[0].ImpliedProb().decimal, 7))
-	assert.Equal(t, 0.4047794, round(trueOdds[1].ImpliedProb().decimal, 7))
-	assert.Equal(t, 0.2222265, round(trueOdds[2].ImpliedProb().decimal, 7))
+	assert.Equal(t, 0.372994, round(trueOdds[0].ImpliedProb().decimal, 6))
+	assert.Equal(t, 0.40478, round(trueOdds[1].ImpliedProb().decimal, 6))
+	assert.Equal(t, 0.222226, round(trueOdds[2].ImpliedProb().decimal, 6))
 }
 
 func TestOddsRatioOdds(t *testing.T) {

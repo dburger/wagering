@@ -98,6 +98,22 @@ func probSum(odds ...Odds) float64 {
 	return probSum
 }
 
+func transSum(prob func(Odds) float64, odds ...Odds) float64 {
+	probSum := 0.0
+	for _, o := range odds {
+		probSum += prob(o)
+	}
+	return probSum
+}
+
+func transOdds(prob func(Odds) float64, odds ...Odds) []Odds {
+	var trans []Odds
+	for _, o := range odds {
+		trans = append(trans, NewOddsFromDecimal(1.0/prob(o)))
+	}
+	return trans
+}
+
 func margin(odds ...Odds) float64 {
 	return probSum(odds...) - 1.0
 }
@@ -238,91 +254,79 @@ func MPTOdds(odds ...Odds) []Odds {
 	return norms
 }
 
-// Largely taken from https://github.com/mberk/shin.
 func ShinOdds(odds ...Odds) []Odds {
-	// TODO(dburger): if n == 2 use additive
-	n := len(odds)
-	probs := probs(odds...)
-	overround := probSum(odds...)
-	delta := math.MaxFloat64
-	convergenceThreshold := 1e-12
-	z := 0.0
-	iterations := 0
+	tolerance := 1e-12
 	maxIterations := 1000
+	c := 0.0
+	i := 0
+	overround := probSum(odds...)
 
-	for delta > convergenceThreshold && iterations < maxIterations {
-		z0 := z
-		z = -2.0
-		for _, p := range probs {
-			z += math.Sqrt(math.Pow(z0, 2) + 4*(1-z0)*math.Pow(p.decimal, 2)/overround)
-		}
-
-		// why isn't this division by zero on a two banger?
-		z /= (float64(n) - 2.0)
-		delta = math.Abs(z - z0)
-		iterations++
+	prob := func(odds Odds) float64 {
+		sqrt := math.Sqrt((math.Pow(c, 2.0) + 4.0*(1.0-c)*math.Pow(odds.ImpliedProb().decimal, 2.0)) / overround)
+		numerator := sqrt - c
+		denominator := 2.0 * (1.0 - c)
+		return numerator / denominator
 	}
 
-	// Now use z to make the true odds.
-	var trueOdds []Odds
-	for _, p := range probs {
-		prob := (math.Sqrt(math.Pow(z, 2)+4*(1-z)*math.Pow(p.decimal, 2)/overround) - z) / (2 * (1 - z))
-		trueOdds = append(trueOdds, NewOddsFromDecimal(1/prob))
+	probSum := transSum(prob, odds...)
+	delta := probSum - 1.0
+
+	for math.Abs(delta) > tolerance && i < maxIterations {
+		c += delta
+		probSum = transSum(prob, odds...)
+		delta = probSum - 1.0
+		i++
 	}
-	return trueOdds
+
+	// Now use c to make the true odds.
+	return transOdds(prob, odds...)
 }
 
 // https://www.sportstradingnetwork.com/article/fixed-odds-betting-traditional-odds/
 func OddsRatioOdds(odds ...Odds) []Odds {
-	delta := math.MaxFloat64
-	convergenceThreshold := 1e-12
-	diff := 0.0
-	c := 1.0
-	iterations := 0
+	tolerance := 1e-12
 	maxIterations := 1000
-	for delta > convergenceThreshold && iterations < maxIterations {
-		c -= diff
-		sum := 0.0
-		for _, o := range odds {
-			sum += 1 / (c*o.decimalOdds + 1 - c)
-		}
-		diff = 1.0 - sum
-		delta = math.Abs(diff)
-		iterations++
+	c := 1.0
+	i := 0
+
+	prob := func(odds Odds) float64 {
+		return odds.ImpliedProb().decimal / (c + ((1.0 - c) / (odds.decimalOdds)))
+	}
+
+	probSum := transSum(prob, odds...)
+	delta := probSum - 1.0
+
+	for math.Abs(delta) > tolerance && i < maxIterations {
+		c += delta
+		probSum = transSum(prob, odds...)
+		delta = probSum - 1.0
+		i++
 	}
 
 	// Now use c to make the true odds.
-	var trueOdds []Odds
-	for _, o := range odds {
-		trueOdds = append(trueOdds, NewOddsFromDecimal(1/(1/(c*o.decimalOdds+1-c))))
-	}
-	return trueOdds
-
+	return transOdds(prob, odds...)
 }
 
 func LogarithmicOdds(odds ...Odds) []Odds {
-	probs := probs(odds...)
-	delta := math.MaxFloat64
-	convergenceThreshold := 1e-12
-	diff := 0.0
-	c := 1.0
-	iterations := 0
+	tolerance := 1e-12
 	maxIterations := 1000
-	for delta > convergenceThreshold && iterations < maxIterations {
-		c -= diff
-		sum := 0.0
-		for _, p := range probs {
-			sum += math.Pow(p.decimal, c)
-		}
-		diff = 1.0 - sum
-		delta = math.Abs(diff)
-		iterations++
+	c := 1.0
+	i := 0
+
+	prob := func(odds Odds) float64 {
+		return math.Pow(1.0/odds.decimalOdds, c)
+	}
+
+	probSum := transSum(prob, odds...)
+	delta := probSum - 1.0
+
+	for math.Abs(delta) > tolerance && i < maxIterations {
+		c += delta
+		probSum = transSum(prob, odds...)
+		delta = probSum - 1.0
+		i++
 	}
 
 	// Now use c to make the true odds.
-	var trueOdds []Odds
-	for _, p := range probs {
-		trueOdds = append(trueOdds, NewOddsFromDecimal(1.0/math.Pow(p.decimal, c)))
-	}
-	return trueOdds
+	return transOdds(prob, odds...)
 }
