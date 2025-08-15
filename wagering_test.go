@@ -7,6 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNewOdds(t *testing.T) {
+	odds := NewOdds(2.0, Decimal)
+	assert.Equal(t, 2.0, odds.decimalOdds)
+	assert.Equal(t, 100.0, odds.americanOdds)
+
+	odds = NewOdds(150, American)
+	assert.Equal(t, 2.5, odds.decimalOdds)
+	assert.Equal(t, 150.0, odds.americanOdds)
+}
+
 func TestConvertAmerican(t *testing.T) {
 	var expectedOdds = []struct {
 		americanOdds        float64

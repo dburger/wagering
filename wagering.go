@@ -54,6 +54,17 @@ func (of OddsFormat) ToString() string {
 	return of.slug
 }
 
+// NewOdds constructs a new Odds from the given price and odds format.
+func NewOdds(price float64, oddsFormat OddsFormat) Odds {
+	if oddsFormat == American {
+		return NewOddsFromAmerican(price)
+	} else if oddsFormat == Decimal {
+		return NewOddsFromDecimal(price)
+	} else {
+		panic("unknown odds format")
+	}
+}
+
 // NewOddsFromAmerican constructs a new Odds from the given american odds.
 func NewOddsFromAmerican(americanOdds float64) Odds {
 	var decimalOdds float64
