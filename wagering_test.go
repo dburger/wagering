@@ -136,6 +136,11 @@ func TestOdds_ToString(t *testing.T) {
 	assert.Equal(t, "3.00", odds.ToString(Decimal))
 }
 
+func TestOddsFormat_ToString(t *testing.T) {
+	assert.Equal(t, "american", American.ToString())
+	assert.Equal(t, "decimal", Decimal.ToString())
+}
+
 func TestMarketWidth(t *testing.T) {
 	odds1 := NewOddsFromAmerican(-141.0)
 	odds2 := NewOddsFromAmerican(+123.0)

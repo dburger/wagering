@@ -50,6 +50,10 @@ func FromString(s string) (OddsFormat, error) {
 	}
 }
 
+func (of OddsFormat) ToString() string {
+	return of.slug
+}
+
 // NewOddsFromAmerican constructs a new Odds from the given american odds.
 func NewOddsFromAmerican(americanOdds float64) Odds {
 	var decimalOdds float64
