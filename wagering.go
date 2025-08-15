@@ -55,13 +55,13 @@ func (of OddsFormat) ToString() string {
 }
 
 // NewOdds constructs a new Odds from the given price and odds format.
-func NewOdds(price float64, oddsFormat OddsFormat) Odds {
+func NewOdds(price float64, oddsFormat OddsFormat) (Odds, error) {
 	if oddsFormat == American {
-		return NewOddsFromAmerican(price)
+		return NewOddsFromAmerican(price), nil
 	} else if oddsFormat == Decimal {
-		return NewOddsFromDecimal(price)
+		return NewOddsFromDecimal(price), nil
 	} else {
-		panic("unknown odds format")
+		return Odds{}, fmt.Errorf("unknown odds format: %v", oddsFormat)
 	}
 }
 

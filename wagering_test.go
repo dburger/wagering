@@ -8,13 +8,18 @@ import (
 )
 
 func TestNewOdds(t *testing.T) {
-	odds := NewOdds(2.0, Decimal)
+	odds, err := NewOdds(2.0, Decimal)
+	assert.Nil(t, err)
 	assert.Equal(t, 2.0, odds.decimalOdds)
 	assert.Equal(t, 100.0, odds.americanOdds)
 
-	odds = NewOdds(150, American)
+	odds, err = NewOdds(150, American)
+	assert.Nil(t, err)
 	assert.Equal(t, 2.5, odds.decimalOdds)
 	assert.Equal(t, 150.0, odds.americanOdds)
+
+	odds, err = NewOdds(100, Unknown)
+	assert.NotNil(t, err)
 }
 
 func TestConvertAmerican(t *testing.T) {
