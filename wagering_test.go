@@ -149,6 +149,9 @@ func TestOdds_ToString(t *testing.T) {
 	odds := NewOddsFromAmerican(+200.0)
 	assert.Equal(t, "+200.00", odds.ToString(American))
 	assert.Equal(t, "3.00", odds.ToString(Decimal))
+
+	odds = NewOddsFromAmerican(-200.0)
+	assert.Equal(t, "-200.00", odds.ToString(American))
 }
 
 func TestOddsFormat_ToString(t *testing.T) {

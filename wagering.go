@@ -102,7 +102,7 @@ func (odds Odds) ToString(of OddsFormat) string {
 		if odds.americanOdds >= 0 {
 			return fmt.Sprintf("+%.2f", odds.americanOdds)
 		} else {
-			return fmt.Sprintf("-%.2f", odds.americanOdds)
+			return fmt.Sprintf("%.2f", odds.americanOdds)
 		}
 	} else if of == Decimal {
 		return fmt.Sprintf("%.2f", odds.decimalOdds)
