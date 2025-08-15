@@ -17,12 +17,37 @@ skew.
 package wagering
 
 import (
+	"fmt"
 	"math"
 )
 
 type Odds struct {
 	decimalOdds  float64
 	americanOdds float64
+}
+
+type OddsFormat struct {
+	slug string
+}
+
+// TODO(dburger): how to prevent accidental overwrite?
+// Should I make these unexported and only return them from FromString?
+
+var (
+	Unknown  = OddsFormat{""}
+	American = OddsFormat{"american"}
+	Decimal  = OddsFormat{"decimal"}
+)
+
+func FromString(s string) (OddsFormat, error) {
+	switch s {
+	case American.slug:
+		return American, nil
+	case Decimal.slug:
+		return Decimal, nil
+	default:
+		return Unknown, fmt.Errorf("unknown odds format: %v", s)
+	}
 }
 
 // NewOddsFromAmerican constructs a new Odds from the given american odds.
@@ -45,6 +70,30 @@ func NewOddsFromDecimal(decimalOdds float64) Odds {
 		americanOdds = -100.0 / (decimalOdds - 1.0)
 	}
 	return Odds{decimalOdds: decimalOdds, americanOdds: americanOdds}
+}
+
+// American returns the american odds.
+func (odds Odds) American() float64 {
+	return odds.americanOdds
+}
+
+// Decimal returns the decimal odds.
+func (odds Odds) Decimal() float64 {
+	return odds.decimalOdds
+}
+
+func (odds Odds) ToString(of OddsFormat) string {
+	if of == American {
+		if odds.americanOdds >= 0 {
+			return fmt.Sprintf("+%.2f", odds.americanOdds)
+		} else {
+			return fmt.Sprintf("-%.2f", odds.americanOdds)
+		}
+	} else if of == Decimal {
+		return fmt.Sprintf("%.2f", odds.decimalOdds)
+	} else {
+		panic("unknown odds format")
+	}
 }
 
 // AverageOdds provides a way to compute the average of a number of Odds.
@@ -116,16 +165,6 @@ func transOdds(prob func(Odds) float64, odds ...Odds) []Odds {
 
 func margin(odds ...Odds) float64 {
 	return probSum(odds...) - 1.0
-}
-
-// American returns the american odds.
-func (odds Odds) American() float64 {
-	return odds.americanOdds
-}
-
-// Decimal returns the decimal odds.
-func (odds Odds) Decimal() float64 {
-	return odds.decimalOdds
 }
 
 // KellyFraction returns the fraction of the bankroll to wager given the probability

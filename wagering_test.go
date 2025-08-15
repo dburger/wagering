@@ -1,9 +1,10 @@
 package wagering
 
 import (
-	"github.com/stretchr/testify/assert"
 	"math"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConvertAmerican(t *testing.T) {
@@ -127,6 +128,12 @@ func TestOdds_ExpectedValueOdds(t *testing.T) {
 	trueOdds = NewOddsFromAmerican(+233.0)
 	ev = odds.ExpectedValueOdds(trueOdds)
 	assert.InDeltaf(t, -0.16, ev, 0.001, "expected value of %v at %v% odds", odds.americanOdds, trueOdds.Decimal())
+}
+
+func TestOdds_ToString(t *testing.T) {
+	odds := NewOddsFromAmerican(+200.0)
+	assert.Equal(t, "+200.00", odds.ToString(American))
+	assert.Equal(t, "3.00", odds.ToString(Decimal))
 }
 
 func TestMarketWidth(t *testing.T) {
