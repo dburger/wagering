@@ -26,7 +26,7 @@ type Odds struct {
 	americanOdds float64
 }
 
-type oddsFormat struct {
+type OddsFormat struct {
 	slug string
 }
 
@@ -34,33 +34,34 @@ type oddsFormat struct {
 // Should I make these unexported and only return them from FromString?
 
 var (
-	american = oddsFormat{"american"}
-	decimal  = oddsFormat{"decimal"}
+	Unknown  = OddsFormat{""}
+	American = OddsFormat{"american"}
+	Decimal  = OddsFormat{"decimal"}
 )
 
-func OddsFormatFromString(s string) (oddsFormat, error) {
+func OddsFormatFromString(s string) (OddsFormat, error) {
 	switch s {
-	case american.slug:
-		return american, nil
-	case decimal.slug:
-		return decimal, nil
+	case American.slug:
+		return American, nil
+	case Decimal.slug:
+		return Decimal, nil
 	default:
-		return american, fmt.Errorf("unknown odds format: %v", s)
+		return Unknown, fmt.Errorf("unknown odds format: %v", s)
 	}
 }
 
-func (of oddsFormat) ToString() string {
+func (of OddsFormat) ToString() string {
 	return of.slug
 }
 
 // NewOdds constructs a new Odds from the given price and odds format.
-func NewOdds(price float64, oddsFormat oddsFormat) (Odds, error) {
-	if oddsFormat == american {
+func NewOdds(price float64, oddsFormat OddsFormat) (Odds, error) {
+	if oddsFormat == American {
 		return NewOddsFromAmerican(price), nil
-	} else if oddsFormat == decimal {
+	} else if oddsFormat == Decimal {
 		return NewOddsFromDecimal(price), nil
 	} else {
-		panic("unreachable")
+		return Odds{}, fmt.Errorf("unknown odds format: %v", oddsFormat)
 	}
 }
 
@@ -96,17 +97,17 @@ func (odds Odds) Decimal() float64 {
 	return odds.decimalOdds
 }
 
-func (odds Odds) ToString(of oddsFormat) string {
-	if of == american {
+func (odds Odds) ToString(of OddsFormat) string {
+	if of == American {
 		if odds.americanOdds >= 0 {
 			return fmt.Sprintf("+%.2f", odds.americanOdds)
 		} else {
 			return fmt.Sprintf("%.2f", odds.americanOdds)
 		}
-	} else if of == decimal {
+	} else if of == Decimal {
 		return fmt.Sprintf("%.2f", odds.decimalOdds)
 	} else {
-		panic("unreachable")
+		panic("unknown odds format")
 	}
 }
 
