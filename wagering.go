@@ -26,7 +26,7 @@ type Odds struct {
 	americanOdds float64
 }
 
-type OddsFormat struct {
+type oddsFormat struct {
 	slug string
 }
 
@@ -34,34 +34,33 @@ type OddsFormat struct {
 // Should I make these unexported and only return them from FromString?
 
 var (
-	Unknown  = OddsFormat{""}
-	American = OddsFormat{"american"}
-	Decimal  = OddsFormat{"decimal"}
+	american = oddsFormat{"american"}
+	decimal  = oddsFormat{"decimal"}
 )
 
-func FromString(s string) (OddsFormat, error) {
+func OddsFormatFromString(s string) (oddsFormat, error) {
 	switch s {
-	case American.slug:
-		return American, nil
-	case Decimal.slug:
-		return Decimal, nil
+	case american.slug:
+		return american, nil
+	case decimal.slug:
+		return decimal, nil
 	default:
-		return Unknown, fmt.Errorf("unknown odds format: %v", s)
+		return american, fmt.Errorf("unknown odds format: %v", s)
 	}
 }
 
-func (of OddsFormat) ToString() string {
+func (of oddsFormat) ToString() string {
 	return of.slug
 }
 
 // NewOdds constructs a new Odds from the given price and odds format.
-func NewOdds(price float64, oddsFormat OddsFormat) (Odds, error) {
-	if oddsFormat == American {
+func NewOdds(price float64, oddsFormat oddsFormat) (Odds, error) {
+	if oddsFormat == american {
 		return NewOddsFromAmerican(price), nil
-	} else if oddsFormat == Decimal {
+	} else if oddsFormat == decimal {
 		return NewOddsFromDecimal(price), nil
 	} else {
-		return Odds{}, fmt.Errorf("unknown odds format: %v", oddsFormat)
+		panic("unreachable")
 	}
 }
 
@@ -97,17 +96,17 @@ func (odds Odds) Decimal() float64 {
 	return odds.decimalOdds
 }
 
-func (odds Odds) ToString(of OddsFormat) string {
-	if of == American {
+func (odds Odds) ToString(of oddsFormat) string {
+	if of == american {
 		if odds.americanOdds >= 0 {
 			return fmt.Sprintf("+%.2f", odds.americanOdds)
 		} else {
 			return fmt.Sprintf("%.2f", odds.americanOdds)
 		}
-	} else if of == Decimal {
+	} else if of == decimal {
 		return fmt.Sprintf("%.2f", odds.decimalOdds)
 	} else {
-		panic("unknown odds format")
+		panic("unreachable")
 	}
 }
 

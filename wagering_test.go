@@ -8,18 +8,15 @@ import (
 )
 
 func TestNewOdds(t *testing.T) {
-	odds, err := NewOdds(2.0, Decimal)
+	odds, err := NewOdds(2.0, decimal)
 	assert.Nil(t, err)
 	assert.Equal(t, 2.0, odds.decimalOdds)
 	assert.Equal(t, 100.0, odds.americanOdds)
 
-	odds, err = NewOdds(150, American)
+	odds, err = NewOdds(150, american)
 	assert.Nil(t, err)
 	assert.Equal(t, 2.5, odds.decimalOdds)
 	assert.Equal(t, 150.0, odds.americanOdds)
-
-	odds, err = NewOdds(100, Unknown)
-	assert.NotNil(t, err)
 }
 
 func TestConvertAmerican(t *testing.T) {
@@ -147,16 +144,30 @@ func TestOdds_ExpectedValueOdds(t *testing.T) {
 
 func TestOdds_ToString(t *testing.T) {
 	odds := NewOddsFromAmerican(+200.0)
-	assert.Equal(t, "+200.00", odds.ToString(American))
-	assert.Equal(t, "3.00", odds.ToString(Decimal))
+	assert.Equal(t, "+200.00", odds.ToString(american))
+	assert.Equal(t, "3.00", odds.ToString(decimal))
 
 	odds = NewOddsFromAmerican(-200.0)
-	assert.Equal(t, "-200.00", odds.ToString(American))
+	assert.Equal(t, "-200.00", odds.ToString(american))
 }
 
 func TestOddsFormat_ToString(t *testing.T) {
-	assert.Equal(t, "american", American.ToString())
-	assert.Equal(t, "decimal", Decimal.ToString())
+	assert.Equal(t, "american", american.ToString())
+	assert.Equal(t, "decimal", decimal.ToString())
+}
+
+func TestOddsFormatFromString(t *testing.T) {
+	format, err := OddsFormatFromString("american")
+	assert.Equal(t, american, format)
+	assert.Nil(t, err)
+
+	format, err = OddsFormatFromString("decimal")
+	assert.Equal(t, decimal, format)
+	assert.Nil(t, err)
+
+	format, err = OddsFormatFromString("foo")
+	assert.Equal(t, american, format)
+	assert.NotNil(t, err)
 }
 
 func TestMarketWidth(t *testing.T) {
