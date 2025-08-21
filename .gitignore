@@ -8,9 +8,6 @@
 *.so
 *.dylib
 
-# Emacs temporary files
-*~
-
 # Test binary, built with `go test -c`
 *.test
 
@@ -23,5 +20,11 @@
 # Go workspace file
 go.work
 
-# Idea project folder
+# Emacs temporary files
+*~
+
+# Intellij Idea project directory
 .idea/
+
+# Build output directory
+bin/
