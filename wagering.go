@@ -22,8 +22,9 @@ import (
 )
 
 type Odds struct {
-	decimalOdds  float64
-	americanOdds float64
+	decimalOdds   float64
+	americanOdds  float64
+	netFractional float64
 }
 
 type OddsFormat struct {
@@ -73,7 +74,7 @@ func NewOddsFromAmerican(americanOdds float64) Odds {
 	} else {
 		decimalOdds = 1.0 - 100.0/americanOdds
 	}
-	return Odds{decimalOdds: decimalOdds, americanOdds: americanOdds}
+	return Odds{decimalOdds: decimalOdds, americanOdds: americanOdds, netFractional: decimalOdds - 1.0}
 }
 
 // NewOddsFromDecimal constructs a new Odds from the given decimal odds.
@@ -84,7 +85,7 @@ func NewOddsFromDecimal(decimalOdds float64) Odds {
 	} else {
 		americanOdds = -100.0 / (decimalOdds - 1.0)
 	}
-	return Odds{decimalOdds: decimalOdds, americanOdds: americanOdds}
+	return Odds{decimalOdds: decimalOdds, americanOdds: americanOdds, netFractional: decimalOdds - 1.0}
 }
 
 // American returns the american odds.
@@ -232,6 +233,11 @@ func (odds Odds) ExpectedValueProb(prob Probability) float64 {
 // decrease (negative) of the wager.
 func (odds Odds) ExpectedValueOdds(trueOdds Odds) float64 {
 	return odds.ExpectedValueProb(trueOdds.ImpliedProb())
+}
+
+func (odds Odds) Meg(trueOdds Odds) float64 {
+	edge := odds.ExpectedValueOdds(trueOdds)
+	return 10000.0 * math.Pow(edge, 2) / (2 * odds.netFractional)
 }
 
 // MarketWidth returns the market width between the given odds.
