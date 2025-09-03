@@ -240,6 +240,20 @@ func (odds Odds) Meg(trueOdds Odds) float64 {
 	return 10000.0 * math.Pow(edge, 2) / (2 * odds.netFractional)
 }
 
+// ArbTo returns whether the given odds is an arbitrage to other odds.
+func (odds Odds) ArbTo(other Odds) bool {
+	return odds.ImpliedProb().decimal+other.ImpliedProb().decimal < 1.0
+	/*
+		if odds.americanOdds > 0 {
+			return -odds.americanOdds < other.americanOdds
+		} else if other.americanOdds > 0 {
+			return -other.americanOdds < odds.americanOdds
+		} else {
+			return false
+		}
+	*/
+}
+
 // MarketWidth returns the market width between the given odds.
 func MarketWidth(odds1, odds2 Odds) float64 {
 	if odds1.americanOdds < 0 && odds2.americanOdds < 0 {

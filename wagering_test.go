@@ -145,6 +145,29 @@ func TestOdds_ExpectedValueOdds(t *testing.T) {
 	assert.InDeltaf(t, -0.16, ev, 0.001, "expected value of %v at %v% odds", odds.americanOdds, trueOdds.Decimal())
 }
 
+func TestOdds_ArbTo(t *testing.T) {
+	odds1 := NewOddsFromAmerican(-110.0)
+	odds2 := NewOddsFromAmerican(-110.0)
+	assert.False(t, odds1.ArbTo(odds2))
+	assert.False(t, odds2.ArbTo(odds1))
+
+	odds2 = NewOddsFromAmerican(100.0)
+	assert.False(t, odds1.ArbTo(odds2))
+	assert.False(t, odds2.ArbTo(odds1))
+
+	odds2 = NewOddsFromAmerican(109.0)
+	assert.False(t, odds1.ArbTo(odds2))
+	assert.False(t, odds2.ArbTo(odds1))
+
+	odds2 = NewOddsFromAmerican(110.0)
+	assert.False(t, odds1.ArbTo(odds2))
+	assert.False(t, odds2.ArbTo(odds1))
+
+	odds2 = NewOddsFromAmerican(111.0)
+	assert.True(t, odds1.ArbTo(odds2))
+	assert.True(t, odds2.ArbTo(odds1))
+}
+
 func TestOdds_ToString(t *testing.T) {
 	odds := NewOddsFromAmerican(+200.0)
 	assert.Equal(t, "+200.00", odds.ToString(American))
