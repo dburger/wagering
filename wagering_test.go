@@ -168,6 +168,20 @@ func TestOdds_ArbTo(t *testing.T) {
 	assert.True(t, odds2.ArbTo(odds1))
 }
 
+func TestOdds_ArbRoi(t *testing.T) {
+	odds1 := NewOddsFromDecimal(3.0)
+	odds2 := NewOddsFromDecimal(3.0)
+	assert.Equal(t, 0.5, odds1.ArbRoi(odds2))
+
+	odds1 = NewOddsFromAmerican(+150)
+	odds2 = NewOddsFromAmerican(+150)
+	assert.Equal(t, 0.25, odds1.ArbRoi(odds2))
+
+	odds1 = NewOddsFromAmerican(-200)
+	odds2 = NewOddsFromAmerican(-200)
+	assert.Equal(t, -0.25, odds1.ArbRoi(odds2))
+}
+
 func TestOdds_ToString(t *testing.T) {
 	odds := NewOddsFromAmerican(+200.0)
 	assert.Equal(t, "+200.00", odds.ToString(American))

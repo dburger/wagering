@@ -254,6 +254,12 @@ func (odds Odds) ArbTo(other Odds) bool {
 	*/
 }
 
+func (odds Odds) ArbRoi(other Odds) float64 {
+	x := odds.decimalOdds
+	y := other.decimalOdds
+	return x*y/(x+y) - 1.0
+}
+
 // MarketWidth returns the market width between the given odds.
 func MarketWidth(odds1, odds2 Odds) float64 {
 	if odds1.americanOdds < 0 && odds2.americanOdds < 0 {
