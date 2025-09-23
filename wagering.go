@@ -118,7 +118,7 @@ type AverageOdds struct {
 	count int
 }
 
-// NewAverageOdds construts a new AverageOdds.
+// NewAverageOdds constructs a new AverageOdds.
 func NewAverageOdds() AverageOdds {
 	return AverageOdds{}
 }
