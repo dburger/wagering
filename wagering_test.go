@@ -272,47 +272,90 @@ func sampleOdds2() []Odds {
 }
 
 func TestEqualMarginOdds(t *testing.T) {
-	trueOdds := EqualMarginOdds(sampleOdds1()...)
+	trueOdds, err := EqualMarginOdds()
+	assert.NotNil(t, err)
+
+	trueOdds, err = EqualMarginOdds(NewOddsFromDecimal(1.0))
+	assert.NotNil(t, err)
+
+	trueOdds, err = EqualMarginOdds(sampleOdds1()...)
+	assert.Nil(t, err)
 	assert.Equal(t, 2.1365, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6700, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8540, round(trueOdds[2].decimalOdds, 4))
 }
 
 func TestAdditiveOdds(t *testing.T) {
-	trueOdds := AdditiveOdds(sampleOdds1()...)
+	trueOdds, err := AdditiveOdds()
+	assert.NotNil(t, err)
+
+	trueOdds, err = AdditiveOdds(NewOddsFromDecimal(1.0))
+	assert.NotNil(t, err)
+
+	trueOdds, err = AdditiveOdds(sampleOdds1()...)
+	assert.Nil(t, err)
 	assert.Equal(t, 2.1229, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6883, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8786, round(trueOdds[2].decimalOdds, 4))
 }
 
 func TestMPTOOdds(t *testing.T) {
-	trueOdds := MPTOdds(sampleOdds1()...)
+	trueOdds, err := MPTOdds()
+	assert.NotNil(t, err)
+
+	trueOdds, err = MPTOdds(NewOddsFromDecimal(1.0))
+	assert.NotNil(t, err)
+
+	trueOdds, err = MPTOdds(sampleOdds1()...)
+	assert.Nil(t, err)
 	assert.Equal(t, 2.1229, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6883, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8786, round(trueOdds[2].decimalOdds, 4))
 }
 
 func TestShinOdds(t *testing.T) {
-	trueOdds := ShinOdds(sampleOdds1()...)
+	trueOdds, err := ShinOdds()
+	assert.NotNil(t, err)
+
+	trueOdds, err = ShinOdds(NewOddsFromDecimal(1.0))
+	assert.NotNil(t, err)
+
+	trueOdds, err = ShinOdds(sampleOdds1()...)
+	assert.Nil(t, err)
 	assert.Equal(t, 2.1264, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6836, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8723, round(trueOdds[2].decimalOdds, 4))
 
-	trueOdds = ShinOdds(sampleOdds2()...)
+	trueOdds, err = ShinOdds(sampleOdds2()...)
+	assert.Nil(t, err)
 	assert.Equal(t, 0.372994, round(trueOdds[0].ImpliedProb().decimal, 6))
 	assert.Equal(t, 0.40478, round(trueOdds[1].ImpliedProb().decimal, 6))
 	assert.Equal(t, 0.222226, round(trueOdds[2].ImpliedProb().decimal, 6))
 }
 
 func TestOddsRatioOdds(t *testing.T) {
-	trueOdds := OddsRatioOdds(sampleOdds1()...)
+	trueOdds, err := OddsRatioOdds()
+	assert.NotNil(t, err)
+
+	trueOdds, err = OddsRatioOdds(NewOddsFromDecimal(1.0))
+	assert.NotNil(t, err)
+
+	trueOdds, err = OddsRatioOdds(sampleOdds1()...)
+	assert.Nil(t, err)
 	assert.Equal(t, 2.1285, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6814, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8678, round(trueOdds[2].decimalOdds, 4))
 }
 
 func TestLogarithmicOdds(t *testing.T) {
-	trueOdds := LogarithmicOdds(sampleOdds1()...)
+	trueOdds, err := LogarithmicOdds()
+	assert.NotNil(t, err)
+
+	trueOdds, err = LogarithmicOdds(NewOddsFromDecimal(1.0))
+	assert.NotNil(t, err)
+
+	trueOdds, err = LogarithmicOdds(sampleOdds1()...)
+	assert.Nil(t, err)
 	assert.Equal(t, 2.1230, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6888, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8778, round(trueOdds[2].decimalOdds, 4))

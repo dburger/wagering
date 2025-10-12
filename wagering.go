@@ -302,17 +302,23 @@ func NewProbabilityFromDecimal(decimal float64) Probability {
 // https://winnerodds.com/valuebettingblog/true-odds-calculator/
 
 // EqualMarginOdds gives the odds of the given Odds using the method of simple normalization.
-func EqualMarginOdds(odds ...Odds) []Odds {
+func EqualMarginOdds(odds ...Odds) ([]Odds, error) {
+	if len(odds) < 2 {
+		return nil, fmt.Errorf("need at least two odds")
+	}
 	probSum := probSum(odds...)
 	var norms []Odds
 	for _, o := range odds {
 		norms = append(norms, NewOddsFromDecimal(o.decimalOdds*probSum))
 	}
-	return norms
+	return norms, nil
 }
 
 // AdditiveOdds gives the odds of the given Odds by removing equal amounts of the margin.
-func AdditiveOdds(odds ...Odds) []Odds {
+func AdditiveOdds(odds ...Odds) ([]Odds, error) {
+	if len(odds) < 2 {
+		return nil, fmt.Errorf("need at least two odds")
+	}
 	n := float64(len(odds))
 	m := margin(odds...)
 	var norms []Odds
@@ -320,21 +326,27 @@ func AdditiveOdds(odds ...Odds) []Odds {
 		prob := 1/o.decimalOdds - m/n
 		norms = append(norms, NewOddsFromDecimal(1/prob))
 	}
-	return norms
+	return norms, nil
 }
 
 // MPTOdds implements the "margin proportional to odds" approach.
-func MPTOdds(odds ...Odds) []Odds {
+func MPTOdds(odds ...Odds) ([]Odds, error) {
+	if len(odds) < 2 {
+		return nil, fmt.Errorf("need at least two odds")
+	}
 	n := float64(len(odds))
 	m := margin(odds...)
 	var norms []Odds
 	for _, o := range odds {
 		norms = append(norms, NewOddsFromDecimal((n*o.decimalOdds)/(n-m*o.decimalOdds)))
 	}
-	return norms
+	return norms, nil
 }
 
-func ShinOdds(odds ...Odds) []Odds {
+func ShinOdds(odds ...Odds) ([]Odds, error) {
+	if len(odds) < 2 {
+		return nil, fmt.Errorf("need at least two odds")
+	}
 	tolerance := 1e-12
 	maxIterations := 1000
 	c := 0.0
@@ -359,11 +371,14 @@ func ShinOdds(odds ...Odds) []Odds {
 	}
 
 	// Now use c to make the true odds.
-	return transOdds(prob, odds...)
+	return transOdds(prob, odds...), nil
 }
 
 // https://www.sportstradingnetwork.com/article/fixed-odds-betting-traditional-odds/
-func OddsRatioOdds(odds ...Odds) []Odds {
+func OddsRatioOdds(odds ...Odds) ([]Odds, error) {
+	if len(odds) < 2 {
+		return nil, fmt.Errorf("need at least two odds")
+	}
 	tolerance := 1e-12
 	maxIterations := 1000
 	c := 1.0
@@ -384,10 +399,13 @@ func OddsRatioOdds(odds ...Odds) []Odds {
 	}
 
 	// Now use c to make the true odds.
-	return transOdds(prob, odds...)
+	return transOdds(prob, odds...), nil
 }
 
-func LogarithmicOdds(odds ...Odds) []Odds {
+func LogarithmicOdds(odds ...Odds) ([]Odds, error) {
+	if len(odds) < 2 {
+		return nil, fmt.Errorf("need at least two odds")
+	}
 	tolerance := 1e-12
 	maxIterations := 1000
 	c := 1.0
@@ -408,5 +426,5 @@ func LogarithmicOdds(odds ...Odds) []Odds {
 	}
 
 	// Now use c to make the true odds.
-	return transOdds(prob, odds...)
+	return transOdds(prob, odds...), nil
 }
