@@ -112,10 +112,11 @@ func (odds Odds) ToString(of OddsFormat) string {
 	}
 }
 
-// AverageOdds provides a way to compute the average of a number of Odds.
+// AverageOdds provides a way to compute the average of a number of Odds. The average
+// is computed as the average of the implied probabilities.
 type AverageOdds struct {
-	sum   float64
-	count int
+	probSum float64
+	count   int
 }
 
 // NewAverageOdds constructs a new AverageOdds.
@@ -125,24 +126,15 @@ func NewAverageOdds() AverageOdds {
 
 // Accumulate accumulates Odds into AverageOdds.
 func (ao *AverageOdds) Accumulate(odds ...Odds) {
-	for _, o := range odds {
-		ao.sum += o.decimalOdds
-		ao.count++
-	}
+	ao.probSum += probSum(odds...)
+	ao.count += len(odds)
 }
 
 // Average returns the average Odds for the AverageOdds.
 func (ao *AverageOdds) Average() Odds {
-	return NewOddsFromDecimal(ao.sum / float64(ao.count))
-}
-
-// AverageWithout returns the Odds for AverageOdds with a count of Odds removed.
-// This most obvious usage of this is to give the average odds while disregarding
-// a particular value that was already accumulated into AverageOdds.
-func (ao *AverageOdds) AverageWithout(odds Odds, count int) Odds {
-	sum := ao.sum - (odds.decimalOdds * float64(count))
-	decimalOdds := sum / float64(ao.count-count)
-	return NewOddsFromDecimal(decimalOdds)
+	avgProb := ao.probSum / float64(ao.count)
+	// TODO(dburger): should we introduce NewOddsFromProb or NewOddsFromImpliedProb?
+	return NewOddsFromDecimal(1.0 / avgProb)
 }
 
 func probs(odds ...Odds) []Probability {
