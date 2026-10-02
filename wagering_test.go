@@ -355,3 +355,28 @@ func TestLogarithmicOdds(t *testing.T) {
 	assert.Equal(t, 3.6888, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8778, round(trueOdds[2].decimalOdds, 4))
 }
+
+func TestOdds_Meg(t *testing.T) {
+	// Expected values are the compounded growth per bet of a full Kelly bet, in basis
+	// points: 10000 * ((1 + f*b)^p * (1 - f)^(1 - p) - 1), with f the Kelly fraction.
+	tests := []struct {
+		name        string
+		decimalOdds float64
+		prob        float64
+		want        float64
+	}{
+		{name: "even odds, 10% edge", decimalOdds: 2.0, prob: 0.55, want: 50.209297},
+		{name: "long odds, 20% edge", decimalOdds: 4.0, prob: 0.30, want: 64.219901},
+		{name: "short odds, 5% edge", decimalOdds: 1.5, prob: 0.70, want: 25.482014},
+		{name: "small edge", decimalOdds: 2.0, prob: 0.501, want: 0.020000},
+		{name: "no edge", decimalOdds: 2.0, prob: 0.5, want: 0},
+		{name: "negative edge", decimalOdds: 2.0, prob: 0.45, want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			odds := NewOddsFromDecimal(tt.decimalOdds)
+			trueOdds := NewOddsFromDecimal(1 / tt.prob)
+			assert.InDelta(t, tt.want, odds.Meg(trueOdds), 1e-5)
+		})
+	}
+}

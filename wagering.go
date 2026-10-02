@@ -227,9 +227,20 @@ func (odds Odds) ExpectedValueOdds(trueOdds Odds) float64 {
 	return odds.ExpectedValueProb(trueOdds.ImpliedProb())
 }
 
+// Meg returns the maximum expected growth, in basis points: the compounded growth
+// of the bankroll per bet from betting the full Kelly fraction at odds when
+// trueOdds are the real odds, (1 + f*b)^p * (1 - f)^q - 1. It is 0 without an
+// edge, since Kelly then bets nothing.
+// https://en.wikipedia.org/wiki/Kelly_criterion
 func (odds Odds) Meg(trueOdds Odds) float64 {
-	edge := odds.ExpectedValueOdds(trueOdds)
-	return 10000.0 * math.Pow(edge, 2) / (2 * odds.netFractional)
+	prob := trueOdds.ImpliedProb()
+	fraction := odds.KellyFraction(prob, 1.0)
+	p := prob.decimal
+	q := 1.0 - p
+	// Computed through the log growth, which Log1p and Expm1 keep accurate for
+	// small fractions.
+	logGrowth := p*math.Log1p(fraction*odds.netFractional) + q*math.Log1p(-fraction)
+	return 10000.0 * math.Expm1(logGrowth)
 }
 
 // ArbTo returns whether the given odds is an arbitrage to other odds.
