@@ -323,6 +323,19 @@ func TestAdditiveOdds(t *testing.T) {
 	assert.Equal(t, 2.1229, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6883, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8786, round(trueOdds[2].decimalOdds, 4))
+
+	// Both take margin / n from each implied probability, so a long enough price
+	// in a wide enough book has more taken than it has. An 18.3% margin over
+	// three prices takes 6.1% from the +1900's 5%. The others then sum to over
+	// one, so none of them is fair either.
+	trueOdds, err = AdditiveOdds(NewOddsFromAmerican(-400), NewOddsFromAmerican(200), NewOddsFromAmerican(1900))
+	assert.Nil(t, trueOdds)
+	assert.NotNil(t, err)
+
+	// A 5% margin takes 1.7% from the same longshot.
+	trueOdds, err = AdditiveOdds(NewOddsFromAmerican(-300), NewOddsFromAmerican(300), NewOddsFromAmerican(1900))
+	assert.Nil(t, err)
+	assertProbs(t, []float64{0.7333333, 0.2333333, 0.0333333}, trueOdds)
 }
 
 func TestMPTOOdds(t *testing.T) {
@@ -337,6 +350,19 @@ func TestMPTOOdds(t *testing.T) {
 	assert.Equal(t, 2.1229, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6883, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8786, round(trueOdds[2].decimalOdds, 4))
+
+	// Both take margin / n from each implied probability, so a long enough price
+	// in a wide enough book has more taken than it has. An 18.3% margin over
+	// three prices takes 6.1% from the +1900's 5%. The others then sum to over
+	// one, so none of them is fair either.
+	trueOdds, err = MPTOdds(NewOddsFromAmerican(-400), NewOddsFromAmerican(200), NewOddsFromAmerican(1900))
+	assert.Nil(t, trueOdds)
+	assert.NotNil(t, err)
+
+	// A 5% margin takes 1.7% from the same longshot.
+	trueOdds, err = MPTOdds(NewOddsFromAmerican(-300), NewOddsFromAmerican(300), NewOddsFromAmerican(1900))
+	assert.Nil(t, err)
+	assertProbs(t, []float64{0.7333333, 0.2333333, 0.0333333}, trueOdds)
 }
 
 func TestShinOdds(t *testing.T) {

@@ -310,6 +310,10 @@ func EqualMarginOdds(odds ...Odds) ([]Odds, error) {
 }
 
 // AdditiveOdds gives the odds of the given Odds by removing equal amounts of the margin.
+//
+// A long enough price in a wide enough book has more of the margin taken than its
+// implied probability holds, which leaves it at zero or below. The others still
+// sum to one with it, so none of them is fair either, and an error is returned.
 func AdditiveOdds(odds ...Odds) ([]Odds, error) {
 	if len(odds) < 2 {
 		return nil, fmt.Errorf("need at least two odds")
@@ -319,12 +323,17 @@ func AdditiveOdds(odds ...Odds) ([]Odds, error) {
 	var norms []Odds
 	for _, o := range odds {
 		prob := 1/o.decimalOdds - m/n
+		if prob <= 0.0 {
+			return nil, fmt.Errorf("margin %v exceeds the implied probability of decimal odds %v", m, o.decimalOdds)
+		}
 		norms = append(norms, NewOddsFromDecimal(1/prob))
 	}
 	return norms, nil
 }
 
-// MPTOdds implements the "margin proportional to odds" approach.
+// MPTOdds implements the "margin proportional to odds" approach. Its true probability
+// for each price works out to 1/o - m/n, as AdditiveOdds removes, and it fails as
+// AdditiveOdds does: where m*o >= n.
 func MPTOdds(odds ...Odds) ([]Odds, error) {
 	if len(odds) < 2 {
 		return nil, fmt.Errorf("need at least two odds")
@@ -333,6 +342,9 @@ func MPTOdds(odds ...Odds) ([]Odds, error) {
 	m := margin(odds...)
 	var norms []Odds
 	for _, o := range odds {
+		if n-m*o.decimalOdds <= 0.0 {
+			return nil, fmt.Errorf("margin %v exceeds the implied probability of decimal odds %v", m, o.decimalOdds)
+		}
 		norms = append(norms, NewOddsFromDecimal((n*o.decimalOdds)/(n-m*o.decimalOdds)))
 	}
 	return norms, nil
