@@ -357,7 +357,7 @@ func ShinOdds(odds ...Odds) ([]Odds, error) {
 	overround := probSum(odds...)
 
 	prob := func(odds Odds) float64 {
-		sqrt := math.Sqrt((math.Pow(c, 2.0) + 4.0*(1.0-c)*math.Pow(odds.ImpliedProb().decimal, 2.0)) / overround)
+		sqrt := math.Sqrt(math.Pow(c, 2.0) + 4.0*(1.0-c)*math.Pow(odds.ImpliedProb().decimal, 2.0)/overround)
 		numerator := sqrt - c
 		denominator := 2.0 * (1.0 - c)
 		return numerator / denominator
