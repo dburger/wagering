@@ -418,7 +418,7 @@ func TestOddsRatioOdds(t *testing.T) {
 	// A price of 1.0 has an implied probability of one at every c, so no c
 	// brings the sum down to one.
 	_, err = OddsRatioOdds(decimalOdds(1.0, 2.0)...)
-	assert.NotNil(t, err)
+	assert.EqualError(t, err, "no true odds for decimal odds [1 2]")
 }
 
 func TestLogarithmicOdds(t *testing.T) {
@@ -445,7 +445,7 @@ func TestLogarithmicOdds(t *testing.T) {
 	// A price of 1.0 has an implied probability of one at every c, so no c
 	// brings the sum down to one.
 	_, err = LogarithmicOdds(decimalOdds(1.0, 2.0)...)
-	assert.NotNil(t, err)
+	assert.EqualError(t, err, "no true odds for decimal odds [1 2]")
 }
 
 func TestOdds_Meg(t *testing.T) {

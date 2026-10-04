@@ -406,7 +406,11 @@ func solveForC(odds []Odds, prob func(o Odds, c float64) float64, start, lowest,
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf("no true odds for %v", odds)
+		var decimals []float64
+		for _, o := range odds {
+			decimals = append(decimals, o.decimalOdds)
+		}
+		return nil, fmt.Errorf("no true odds for decimal odds %v", decimals)
 	}
 
 	// Halve the bracket until no float64 lies strictly inside it.
