@@ -155,14 +155,6 @@ func probSum(odds ...Odds) float64 {
 	return probSum
 }
 
-func transSum(prob func(Odds) float64, odds ...Odds) float64 {
-	probSum := 0.0
-	for _, o := range odds {
-		probSum += prob(o)
-	}
-	return probSum
-}
-
 func transOdds(prob func(Odds) float64, odds ...Odds) []Odds {
 	var trans []Odds
 	for _, o := range odds {
@@ -346,88 +338,125 @@ func MPTOdds(odds ...Odds) ([]Odds, error) {
 	return norms, nil
 }
 
+// solveForC solves for the parameter c that removes the vig, where the true
+// probabilities of the odds sum to one, and returns the true odds at that c.
+//
+// Each method's probabilities sum to less as c grows, over the whole of the
+// range c can take, and from above one at the bottom of that range to below one
+// at the top. So there is exactly one answer, and bisection finds it: step out
+// from start until the sum crosses one, then halve the gap until it closes. That
+// cannot fail to converge.
+//
+// It replaced a fixed point iteration, c += sum - 1, which moved c by the whole
+// overshoot each step. Where the sum is steep in c that overshoots the answer
+// and swings about it forever, and the loop then gave up at its cap and returned
+// wherever it was, without an error.
+//
+// lowest may be math.Inf(-1) and highest math.Inf(1). An error is returned when
+// no c makes the probabilities sum to one, as for a price of 1.0.
+func solveForC(odds []Odds, prob func(o Odds, c float64) float64, start, lowest, highest float64) ([]Odds, error) {
+	excess := func(c float64) float64 {
+		sum := 0.0
+		for _, o := range odds {
+			sum += prob(o, c)
+		}
+		return sum - 1.0
+	}
+
+	// outward returns the next point out from c towards limit: halfway to it if
+	// it is finite, since the limit itself may not be evaluable, and a doubling
+	// step if it is not.
+	outward := func(c, limit, step float64) float64 {
+		if math.IsInf(limit, 0) {
+			return c + step
+		}
+		return (c + limit) / 2.0
+	}
+
+	// Bracket the answer between a c whose sum is over one and one whose sum is
+	// under it.
+	over, under := start, start
+	atStart := excess(start)
+	found := atStart == 0.0
+	for i, step := 0, 1.0; i < 2000 && !found; i, step = i+1, step*2.0 {
+		if atStart > 0.0 {
+			under = outward(under, highest, step)
+			found = excess(under) < 0.0
+			if !found {
+				over = under
+			}
+		} else {
+			over = outward(over, lowest, -step)
+			found = excess(over) > 0.0
+			if !found {
+				under = over
+			}
+		}
+	}
+	if !found {
+		return nil, fmt.Errorf("no true odds for %v", odds)
+	}
+
+	// Halve the bracket until no float64 lies strictly inside it.
+	for i := 0; i < 2000; i++ {
+		mid := (over + under) / 2.0
+		if mid == over || mid == under {
+			break
+		}
+		if excess(mid) > 0.0 {
+			over = mid
+		} else {
+			under = mid
+		}
+	}
+	c := (over + under) / 2.0
+	return transOdds(func(o Odds) float64 { return prob(o, c) }, odds...), nil
+}
+
+// ShinOdds implements Shin's approach, which models the vig as the book's
+// protection against insider money. c is z, the share of the money that is
+// insiders', which runs up to but not including one. It is negative for a book
+// whose implied probabilities sum to less than one, which Shin's model does not
+// describe but the formula still devigs.
 func ShinOdds(odds ...Odds) ([]Odds, error) {
 	if len(odds) < 2 {
 		return nil, fmt.Errorf("need at least two odds")
 	}
-	tolerance := 1e-12
-	maxIterations := 1000
-	c := 0.0
-	i := 0
 	overround := probSum(odds...)
 
-	prob := func(odds Odds) float64 {
-		sqrt := math.Sqrt(math.Pow(c, 2.0) + 4.0*(1.0-c)*math.Pow(odds.ImpliedProb().decimal, 2.0)/overround)
+	return solveForC(odds, func(o Odds, c float64) float64 {
+		// Only the pi^2 term is divided by the overround, as in Jullien and Salanie
+		// (1994) and Strumbelj (2014).
+		sqrt := math.Sqrt(math.Pow(c, 2.0) + 4.0*(1.0-c)*math.Pow(o.ImpliedProb().decimal, 2.0)/overround)
 		numerator := sqrt - c
 		denominator := 2.0 * (1.0 - c)
 		return numerator / denominator
-	}
-
-	probSum := transSum(prob, odds...)
-	delta := probSum - 1.0
-
-	for math.Abs(delta) > tolerance && i < maxIterations {
-		c += delta
-		probSum = transSum(prob, odds...)
-		delta = probSum - 1.0
-		i++
-	}
-
-	// Now use c to make the true odds.
-	return transOdds(prob, odds...), nil
+	}, 0.0, math.Inf(-1), 1.0)
 }
 
+// OddsRatioOdds implements the "odds ratio" approach, which divides the odds (in
+// the p / (1 - p) sense) of every implied probability by the same c.
 // https://www.sportstradingnetwork.com/article/fixed-odds-betting-traditional-odds/
 func OddsRatioOdds(odds ...Odds) ([]Odds, error) {
 	if len(odds) < 2 {
 		return nil, fmt.Errorf("need at least two odds")
 	}
-	tolerance := 1e-12
-	maxIterations := 1000
-	c := 1.0
-	i := 0
-
-	prob := func(odds Odds) float64 {
-		return odds.ImpliedProb().decimal / (c + ((1.0 - c) / (odds.decimalOdds)))
-	}
-
-	probSum := transSum(prob, odds...)
-	delta := probSum - 1.0
-
-	for math.Abs(delta) > tolerance && i < maxIterations {
-		c += delta
-		probSum = transSum(prob, odds...)
-		delta = probSum - 1.0
-		i++
-	}
-
-	// Now use c to make the true odds.
-	return transOdds(prob, odds...), nil
+	// c runs over the positive numbers. Solved for in its log, since c ranges over
+	// orders of magnitude and a log spreads them evenly for bisection.
+	return solveForC(odds, func(o Odds, logC float64) float64 {
+		c := math.Exp(logC)
+		return o.ImpliedProb().decimal / (c + ((1.0 - c) / (o.decimalOdds)))
+	}, 0.0, math.Inf(-1), math.Inf(1))
 }
 
+// LogarithmicOdds implements the "logarithmic" approach, which raises each
+// implied probability to the power c.
 func LogarithmicOdds(odds ...Odds) ([]Odds, error) {
 	if len(odds) < 2 {
 		return nil, fmt.Errorf("need at least two odds")
 	}
-	tolerance := 1e-12
-	maxIterations := 1000
-	c := 1.0
-	i := 0
-
-	prob := func(odds Odds) float64 {
-		return math.Pow(1.0/odds.decimalOdds, c)
-	}
-
-	probSum := transSum(prob, odds...)
-	delta := probSum - 1.0
-
-	for math.Abs(delta) > tolerance && i < maxIterations {
-		c += delta
-		probSum = transSum(prob, odds...)
-		delta = probSum - 1.0
-		i++
-	}
-
-	// Now use c to make the true odds.
-	return transOdds(prob, odds...), nil
+	// c runs over the positive numbers, solved for in its log as in OddsRatioOdds.
+	return solveForC(odds, func(o Odds, logC float64) float64 {
+		return math.Pow(1.0/o.decimalOdds, math.Exp(logC))
+	}, 0.0, math.Inf(-1), math.Inf(1))
 }

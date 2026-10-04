@@ -266,6 +266,37 @@ func sampleOdds2() []Odds {
 	return []Odds{NewOddsFromDecimal(2.6), NewOddsFromDecimal(2.4), NewOddsFromDecimal(4.3)}
 }
 
+// tenRunners returns a field of ten runners at a 20% margin, as a race or a
+// futures market has. The old fixed point solver never converged on it for
+// Shin or the logarithmic method.
+func tenRunners() []Odds {
+	return decimalOdds(11.14, 5.97, 52.76, 10.9, 5.76, 5.11, 10.44, 10.55, 11.02, 5.51)
+}
+
+// underround returns a two way market whose implied probabilities sum to
+// 95.6%, which the solvers must push the other way.
+func underround() []Odds {
+	return decimalOdds(1.8, 2.5)
+}
+
+func decimalOdds(prices ...float64) []Odds {
+	var odds []Odds
+	for _, p := range prices {
+		odds = append(odds, NewOddsFromDecimal(p))
+	}
+	return odds
+}
+
+// assertProbs asserts the implied probabilities of odds to seven places.
+func assertProbs(t *testing.T, want []float64, odds []Odds) {
+	t.Helper()
+	var got []float64
+	for _, o := range odds {
+		got = append(got, round(o.ImpliedProb().decimal, 7))
+	}
+	assert.Equal(t, want, got)
+}
+
 func TestEqualMarginOdds(t *testing.T) {
 	trueOdds, err := EqualMarginOdds()
 	assert.NotNil(t, err)
@@ -327,6 +358,14 @@ func TestShinOdds(t *testing.T) {
 	assert.Equal(t, 0.3729941, round(trueOdds[0].ImpliedProb().decimal, 7))
 	assert.Equal(t, 0.4047794, round(trueOdds[1].ImpliedProb().decimal, 7))
 	assert.Equal(t, 0.2222265, round(trueOdds[2].ImpliedProb().decimal, 7))
+
+	trueOdds, err = ShinOdds(tenRunners()...)
+	assert.Nil(t, err)
+	assertProbs(t, []float64{0.0719737, 0.1433818, 0.0093293, 0.0737813, 0.1490059, 0.1693519, 0.0774805, 0.0765663, 0.0728675, 0.1562619}, trueOdds)
+
+	trueOdds, err = ShinOdds(underround()...)
+	assert.Nil(t, err)
+	assertProbs(t, []float64{0.5777778, 0.4222222}, trueOdds)
 }
 
 func TestOddsRatioOdds(t *testing.T) {
@@ -341,6 +380,19 @@ func TestOddsRatioOdds(t *testing.T) {
 	assert.Equal(t, 2.1285, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6814, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8678, round(trueOdds[2].decimalOdds, 4))
+
+	trueOdds, err = OddsRatioOdds(tenRunners()...)
+	assert.Nil(t, err)
+	assertProbs(t, []float64{0.0740145, 0.1402120, 0.0154173, 0.0756730, 0.1454978, 0.1647182, 0.0790689, 0.0782294, 0.0748345, 0.1523345}, trueOdds)
+
+	trueOdds, err = OddsRatioOdds(underround()...)
+	assert.Nil(t, err)
+	assertProbs(t, []float64{0.5779355, 0.4220645}, trueOdds)
+
+	// A price of 1.0 has an implied probability of one at every c, so no c
+	// brings the sum down to one.
+	_, err = OddsRatioOdds(decimalOdds(1.0, 2.0)...)
+	assert.NotNil(t, err)
 }
 
 func TestLogarithmicOdds(t *testing.T) {
@@ -355,6 +407,19 @@ func TestLogarithmicOdds(t *testing.T) {
 	assert.Equal(t, 2.1230, round(trueOdds[0].decimalOdds, 4))
 	assert.Equal(t, 3.6888, round(trueOdds[1].decimalOdds, 4))
 	assert.Equal(t, 3.8778, round(trueOdds[2].decimalOdds, 4))
+
+	trueOdds, err = LogarithmicOdds(tenRunners()...)
+	assert.Nil(t, err)
+	assertProbs(t, []float64{0.0720491, 0.1423145, 0.0132009, 0.0737819, 0.1479856, 0.1686414, 0.0773364, 0.0764569, 0.0729057, 0.1553274}, trueOdds)
+
+	trueOdds, err = LogarithmicOdds(underround()...)
+	assert.Nil(t, err)
+	assertProbs(t, []float64{0.5763815, 0.4236185}, trueOdds)
+
+	// A price of 1.0 has an implied probability of one at every c, so no c
+	// brings the sum down to one.
+	_, err = LogarithmicOdds(decimalOdds(1.0, 2.0)...)
+	assert.NotNil(t, err)
 }
 
 func TestOdds_Meg(t *testing.T) {
