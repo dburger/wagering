@@ -113,10 +113,11 @@ func (odds Odds) ToString(of OddsFormat) string {
 }
 
 // AverageOdds provides a way to compute the average of a number of Odds. The average
-// is computed as the average of the implied probabilities.
+// is computed as the average of the implied probabilities, weighted when Odds are given
+// to AccumulateWeighted.
 type AverageOdds struct {
-	probSum float64
-	count   int
+	probSum   float64
+	weightSum float64
 }
 
 // NewAverageOdds constructs a new AverageOdds.
@@ -126,13 +127,19 @@ func NewAverageOdds() AverageOdds {
 
 // Accumulate accumulates Odds into AverageOdds.
 func (ao *AverageOdds) Accumulate(odds ...Odds) {
-	ao.probSum += probSum(odds...)
-	ao.count += len(odds)
+	ao.AccumulateWeighted(1, odds...)
+}
+
+// AccumulateWeighted accumulates Odds into AverageOdds, each counting weight times as much
+// as Odds given to Accumulate.
+func (ao *AverageOdds) AccumulateWeighted(weight float64, odds ...Odds) {
+	ao.probSum += weight * probSum(odds...)
+	ao.weightSum += weight * float64(len(odds))
 }
 
 // Average returns the average Odds for the AverageOdds.
 func (ao *AverageOdds) Average() Odds {
-	avgProb := ao.probSum / float64(ao.count)
+	avgProb := ao.probSum / ao.weightSum
 	// TODO(dburger): should we introduce NewOddsFromProb or NewOddsFromImpliedProb?
 	return NewOddsFromDecimal(1.0 / avgProb)
 }

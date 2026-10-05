@@ -248,6 +248,48 @@ func TestAverageOdds(t *testing.T) {
 	assert.InDeltaf(t, 4.4366, ao.Average().decimalOdds, 0.00005, "averaging odds %v", ao)
 }
 
+func TestAverageOddsWeighted(t *testing.T) {
+	tests := []struct {
+		name       string
+		accumulate func(ao *AverageOdds)
+		want       float64
+	}{
+		{
+			// (2/3 + 1/5) / 3 = 0.28889
+			name: "weight of two",
+			accumulate: func(ao *AverageOdds) {
+				ao.AccumulateWeighted(2, NewOddsFromDecimal(3.0))
+				ao.AccumulateWeighted(1, NewOddsFromDecimal(5.0))
+			},
+			want: 3.4615,
+		},
+		{
+			// (1/7 + 3/3) / 4 = 0.28571, with Accumulate weighing one.
+			name: "mixed with Accumulate",
+			accumulate: func(ao *AverageOdds) {
+				ao.Accumulate(NewOddsFromDecimal(7.0))
+				ao.AccumulateWeighted(3, NewOddsFromDecimal(3.0))
+			},
+			want: 3.5,
+		},
+		{
+			// (0.5/2 + 0.5/4) / 1 = 0.375, weights need not be whole.
+			name: "fractional weights",
+			accumulate: func(ao *AverageOdds) {
+				ao.AccumulateWeighted(0.5, NewOddsFromDecimal(2.0), NewOddsFromDecimal(4.0))
+			},
+			want: 2.6667,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ao := NewAverageOdds()
+			tt.accumulate(&ao)
+			assert.InDeltaf(t, tt.want, ao.Average().decimalOdds, 0.00005, "averaging odds %v", ao)
+		})
+	}
+}
+
 func round(value float64, places uint) float64 {
 	mult := math.Pow(10, float64(places))
 	return math.Round(value*mult) / mult
