@@ -463,6 +463,33 @@ func TestLogarithmicOdds(t *testing.T) {
 	assert.EqualError(t, err, "no true odds for decimal odds [1 2]")
 }
 
+func TestProbitOdds(t *testing.T) {
+	trueOdds, err := ProbitOdds()
+	assert.NotNil(t, err)
+
+	trueOdds, err = ProbitOdds(NewOddsFromDecimal(1.0))
+	assert.NotNil(t, err)
+
+	trueOdds, err = ProbitOdds(sampleOdds1()...)
+	assert.Nil(t, err)
+	assert.Equal(t, 2.1273, round(trueOdds[0].decimalOdds, 4))
+	assert.Equal(t, 3.6829, round(trueOdds[1].decimalOdds, 4))
+	assert.Equal(t, 3.8700, round(trueOdds[2].decimalOdds, 4))
+
+	trueOdds, err = ProbitOdds(tenRunners()...)
+	assert.Nil(t, err)
+	assertProbs(t, []float64{0.0731016, 0.1411973, 0.0143810, 0.0747955, 0.1466588, 0.1665270, 0.0782668, 0.0774083, 0.0739390, 0.1537247}, trueOdds)
+
+	trueOdds, err = ProbitOdds(underround()...)
+	assert.Nil(t, err)
+	assertProbs(t, []float64{0.5779018, 0.4220982}, trueOdds)
+
+	// A price of 1.0 has an implied probability of one at every c, so no c
+	// brings the sum down to one.
+	_, err = ProbitOdds(decimalOdds(1.0, 2.0)...)
+	assert.EqualError(t, err, "no true odds for decimal odds [1 2]")
+}
+
 func TestOdds_Meg(t *testing.T) {
 	// Expected values are the compounded growth per bet of a full Kelly bet, in basis
 	// points: 10000 * ((1 + f*b)^p * (1 - f)^(1 - p) - 1), with f the Kelly fraction.

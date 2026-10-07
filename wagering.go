@@ -466,3 +466,18 @@ func LogarithmicOdds(odds ...Odds) ([]Odds, error) {
 		return math.Pow(1.0/o.decimalOdds, math.Exp(logC))
 	}, 0.0, math.Inf(-1), math.Inf(1))
 }
+
+// ProbitOdds implements the "probit" approach, which moves every implied
+// probability by the same c in probit space, the quantile of the standard
+// normal: true probability = Phi(Phi^-1(p) - c). It is the odds ratio approach
+// with the normal distribution in place of the logistic one.
+func ProbitOdds(odds ...Odds) ([]Odds, error) {
+	if len(odds) < 2 {
+		return nil, fmt.Errorf("need at least two odds")
+	}
+	// Phi^-1(p) = sqrt(2) * erfinv(2p - 1) and Phi(x) = erfc(-x / sqrt(2)) / 2.
+	return solveForC(odds, func(o Odds, c float64) float64 {
+		z := math.Sqrt2 * math.Erfinv(2.0*o.ImpliedProb().decimal-1.0)
+		return math.Erfc(-(z-c)/math.Sqrt2) / 2.0
+	}, 0.0, math.Inf(-1), math.Inf(1))
+}
