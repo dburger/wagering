@@ -7,7 +7,10 @@ Typical usage:
 	likelihood := 0.6
 	multiplier := 0.3
 	bankroll := 10000.0
-	odds := wagering.NewOddsFromAmerican(-110.0)
+	odds, err := wagering.NewOddsFromAmerican(-110.0)
+	if err != nil {
+		return err
+	}
 	wager := odds.KellyStake(likelihood, multiplier, bankroll)
 
 Note that when odds are constructed from american or decimal odds, that value is
@@ -17,6 +20,7 @@ skew.
 package wagering
 
 import (
+	"errors"
 	"fmt"
 	"math"
 )
@@ -58,34 +62,57 @@ func (of OddsFormat) ToString() string {
 // NewOdds constructs a new Odds from the given price and odds format.
 func NewOdds(price float64, oddsFormat OddsFormat) (Odds, error) {
 	if oddsFormat == American {
-		return NewOddsFromAmerican(price), nil
+		return NewOddsFromAmerican(price)
 	} else if oddsFormat == Decimal {
-		return NewOddsFromDecimal(price), nil
+		return NewOddsFromDecimal(price)
 	} else {
 		return Odds{}, fmt.Errorf("unknown odds format: %v", oddsFormat)
 	}
 }
 
-// NewOddsFromAmerican constructs a new Odds from the given american odds.
-func NewOddsFromAmerican(americanOdds float64) Odds {
-	var decimalOdds float64
-	if americanOdds > 0 {
-		decimalOdds = americanOdds/100.0 + 1.0
-	} else {
-		decimalOdds = 1.0 - 100.0/americanOdds
+// NewOddsFromAmerican constructs a new Odds from the given american odds, which must be finite
+// and at most -100 or at least +100; anything else is an error. For whole-number american odds,
+// the decimal odds are the float64 nearest their exact value.
+func NewOddsFromAmerican(americanOdds float64) (Odds, error) {
+	// Written as the valid range negated, so NaN, which fails every comparison, is rejected too.
+	if !(americanOdds <= -100.0 || americanOdds >= 100.0) || math.IsInf(americanOdds, 0) {
+		return Odds{}, fmt.Errorf("invalid american odds: %v", americanOdds)
 	}
-	return Odds{decimalOdds: decimalOdds, americanOdds: americanOdds, netFractional: decimalOdds - 1.0}
+	var decimalOdds float64
+	var netFractional float64
+	if americanOdds >= 100.0 {
+		decimalOdds = (americanOdds + 100.0) / 100.0
+		netFractional = americanOdds / 100.0
+	} else {
+		decimalOdds = (americanOdds - 100.0) / americanOdds
+		netFractional = -100.0 / americanOdds
+	}
+	return Odds{
+		decimalOdds:   decimalOdds,
+		americanOdds:  americanOdds,
+		netFractional: netFractional,
+	}, nil
 }
 
-// NewOddsFromDecimal constructs a new Odds from the given decimal odds.
-func NewOddsFromDecimal(decimalOdds float64) Odds {
+// NewOddsFromDecimal constructs a new Odds from the given decimal odds, which must be finite and
+// greater than 1; anything else is an error. The american odds are the float64 nearest the exact
+// value for the given decimal odds.
+func NewOddsFromDecimal(decimalOdds float64) (Odds, error) {
+	// Written as the valid range negated, so NaN, which fails every comparison, is rejected too.
+	if !(decimalOdds > 1.0) || math.IsInf(decimalOdds, 0) {
+		return Odds{}, fmt.Errorf("invalid decimal odds: %v", decimalOdds)
+	}
 	var americanOdds float64
 	if decimalOdds >= 2.0 {
 		americanOdds = (decimalOdds - 1.0) * 100.0
 	} else {
 		americanOdds = -100.0 / (decimalOdds - 1.0)
 	}
-	return Odds{decimalOdds: decimalOdds, americanOdds: americanOdds, netFractional: decimalOdds - 1.0}
+	return Odds{
+		decimalOdds:   decimalOdds,
+		americanOdds:  americanOdds,
+		netFractional: decimalOdds - 1.0,
+	}, nil
 }
 
 // American returns the american odds.
@@ -137,8 +164,12 @@ func (ao *AverageOdds) AccumulateWeighted(weight float64, odds ...Odds) {
 	ao.weightSum += weight * float64(len(odds))
 }
 
-// Average returns the average Odds for the AverageOdds.
-func (ao *AverageOdds) Average() Odds {
+// Average returns the average Odds for the AverageOdds. It is an error if nothing has been
+// accumulated, or if the average implied probability isn't below 1, which no decimal odds give.
+func (ao *AverageOdds) Average() (Odds, error) {
+	if ao.weightSum == 0 {
+		return Odds{}, errors.New("no odds to average")
+	}
 	avgProb := ao.probSum / ao.weightSum
 	// TODO(dburger): should we introduce NewOddsFromProb or NewOddsFromImpliedProb?
 	return NewOddsFromDecimal(1.0 / avgProb)
@@ -162,12 +193,16 @@ func probSum(odds ...Odds) float64 {
 	return probSum
 }
 
-func transOdds(prob func(Odds) float64, odds ...Odds) []Odds {
+func transOdds(prob func(Odds) float64, odds ...Odds) ([]Odds, error) {
 	var trans []Odds
 	for _, o := range odds {
-		trans = append(trans, NewOddsFromDecimal(1.0/prob(o)))
+		todds, err := NewOddsFromDecimal(1.0 / prob(o))
+		if err != nil {
+			return nil, fmt.Errorf("devigged odds: %w", err)
+		}
+		trans = append(trans, todds)
 	}
-	return trans
+	return trans, nil
 }
 
 func margin(odds ...Odds) float64 {
@@ -311,7 +346,11 @@ func EqualMarginOdds(odds ...Odds) ([]Odds, error) {
 	probSum := probSum(odds...)
 	var norms []Odds
 	for _, o := range odds {
-		norms = append(norms, NewOddsFromDecimal(o.decimalOdds*probSum))
+		nodds, err := NewOddsFromDecimal(o.decimalOdds * probSum)
+		if err != nil {
+			return nil, fmt.Errorf("equal margin odds: %w", err)
+		}
+		norms = append(norms, nodds)
 	}
 	return norms, nil
 }
@@ -335,7 +374,11 @@ func MPTOdds(odds ...Odds) ([]Odds, error) {
 		if prob <= 0.0 {
 			return nil, fmt.Errorf("margin %v exceeds the implied probability of decimal odds %v", m, o.decimalOdds)
 		}
-		norms = append(norms, NewOddsFromDecimal(1/prob))
+		nodds, err := NewOddsFromDecimal(1 / prob)
+		if err != nil {
+			return nil, fmt.Errorf("MPT odds: %w", err)
+		}
+		norms = append(norms, nodds)
 	}
 	return norms, nil
 }
@@ -416,7 +459,7 @@ func solveForC(odds []Odds, prob func(o Odds, c float64) float64, start, lowest,
 		}
 	}
 	c := (over + under) / 2.0
-	return transOdds(func(o Odds) float64 { return prob(o, c) }, odds...), nil
+	return transOdds(func(o Odds) float64 { return prob(o, c) }, odds...)
 }
 
 // ShinOdds implements Shin's approach, which models the vig as the book's
