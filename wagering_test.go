@@ -47,6 +47,23 @@ func TestNewOdds(t *testing.T) {
 
 	_, err = NewOdds(1.0, Decimal)
 	assert.EqualError(t, err, "invalid decimal odds: 1")
+
+	odds, err = NewOdds(40, Cents)
+	assert.Nil(t, err)
+	assert.Equal(t, 2.5, odds.decimalOdds)
+	assert.Equal(t, 150.0, odds.americanOdds)
+	assert.Equal(t, 40.0, odds.cents)
+
+	odds, err = NewOdds(150, American)
+	assert.Nil(t, err)
+	assert.Equal(t, 40.0, odds.cents)
+
+	odds, err = NewOdds(4.0, Decimal)
+	assert.Nil(t, err)
+	assert.Equal(t, 25.0, odds.cents)
+
+	_, err = NewOdds(100, Cents)
+	assert.EqualError(t, err, "invalid cents: 100")
 }
 
 func TestNewOddsFromAmericanInvalid(t *testing.T) {
@@ -109,6 +126,36 @@ func TestNewOddsFromDecimalExact(t *testing.T) {
 		if got := decimal(t, d).americanOdds; got != want {
 			t.Errorf("decimal %v: american %v, want %v", d, got, want)
 		}
+	}
+}
+
+func TestNewOddsFromCentsInvalid(t *testing.T) {
+	for _, c := range []float64{100, 150, 0, -20, math.Inf(1), math.Inf(-1), math.NaN()} {
+		_, err := NewOddsFromCents(c)
+		assert.Errorf(t, err, "cents %v", c)
+	}
+}
+
+func TestConvertCents(t *testing.T) {
+	var expectedOdds = []struct {
+		cents                float64
+		expectedDecimalOdds  float64
+		expectedAmericanOdds float64
+	}{
+		{1, 100.0, +9900.0},
+		{21.75, 4.5977, +359.77},
+		{25, 4.0, +300.0},
+		{50, 2.0, +100.0},
+		{60, 1.6667, -150.0},
+		{72, 1.3889, -257.14},
+		{99.5, 1.005, -19900.0},
+	}
+	for _, odds := range expectedOdds {
+		converted, err := NewOddsFromCents(odds.cents)
+		assert.Nil(t, err)
+		assert.InDeltaf(t, odds.expectedDecimalOdds, converted.decimalOdds, 0.0001, "converting cents %v", odds.cents)
+		assert.InDeltaf(t, odds.expectedAmericanOdds, converted.americanOdds, 0.01, "converting cents %v", odds.cents)
+		assert.Equal(t, odds.cents, converted.Cents(), "cents %v kept as given", odds.cents)
 	}
 }
 
@@ -278,13 +325,21 @@ func TestOdds_ToString(t *testing.T) {
 	assert.Equal(t, "+200.00", odds.ToString(American))
 	assert.Equal(t, "3.00", odds.ToString(Decimal))
 
+	assert.Equal(t, "33.33¢", odds.ToString(Cents))
+
 	odds = american(t, -200.0)
 	assert.Equal(t, "-200.00", odds.ToString(American))
+	assert.Equal(t, "66.67¢", odds.ToString(Cents))
+
+	odds, err := NewOddsFromCents(21.75)
+	assert.Nil(t, err)
+	assert.Equal(t, "21.75¢", odds.ToString(Cents))
 }
 
 func TestOddsFormat_ToString(t *testing.T) {
 	assert.Equal(t, "american", American.ToString())
 	assert.Equal(t, "decimal", Decimal.ToString())
+	assert.Equal(t, "cents", Cents.ToString())
 }
 
 func TestOddsFormatFromString(t *testing.T) {
@@ -294,6 +349,10 @@ func TestOddsFormatFromString(t *testing.T) {
 
 	format, err = OddsFormatFromString("decimal")
 	assert.Equal(t, format, Decimal)
+	assert.Nil(t, err)
+
+	format, err = OddsFormatFromString("cents")
+	assert.Equal(t, format, Cents)
 	assert.Nil(t, err)
 
 	format, err = OddsFormatFromString("foo")

@@ -29,6 +29,7 @@ type Odds struct {
 	decimalOdds   float64
 	americanOdds  float64
 	netFractional float64
+	cents         float64
 }
 
 type OddsFormat struct {
@@ -42,6 +43,7 @@ var (
 	Unknown  = OddsFormat{""}
 	American = OddsFormat{"american"}
 	Decimal  = OddsFormat{"decimal"}
+	Cents    = OddsFormat{"cents"}
 )
 
 func OddsFormatFromString(s string) (OddsFormat, error) {
@@ -50,6 +52,8 @@ func OddsFormatFromString(s string) (OddsFormat, error) {
 		return American, nil
 	case Decimal.slug:
 		return Decimal, nil
+	case Cents.slug:
+		return Cents, nil
 	default:
 		return Unknown, fmt.Errorf("unknown odds format: %v", s)
 	}
@@ -59,12 +63,19 @@ func (of OddsFormat) ToString() string {
 	return of.slug
 }
 
+// Note that these constructors generally try to create the fields of
+// the Odds struct directly from the provided value rather than computing
+// one, say decimal, and then deriving the others from it. Presumably,
+// this results in fewer rounding errors and more accurate odds.
+
 // NewOdds constructs a new Odds from the given price and odds format.
 func NewOdds(price float64, oddsFormat OddsFormat) (Odds, error) {
 	if oddsFormat == American {
 		return NewOddsFromAmerican(price)
 	} else if oddsFormat == Decimal {
 		return NewOddsFromDecimal(price)
+	} else if oddsFormat == Cents {
+		return NewOddsFromCents(price)
 	} else {
 		return Odds{}, fmt.Errorf("unknown odds format: %v", oddsFormat)
 	}
@@ -87,10 +98,17 @@ func NewOddsFromAmerican(americanOdds float64) (Odds, error) {
 		decimalOdds = (americanOdds - 100.0) / americanOdds
 		netFractional = -100.0 / americanOdds
 	}
+	var cents float64
+	if americanOdds > 0.0 {
+		cents = 10000.0 / (americanOdds + 100.0)
+	} else {
+		cents = (-americanOdds * 100.0) / (-americanOdds + 100.0)
+	}
 	return Odds{
 		decimalOdds:   decimalOdds,
 		americanOdds:  americanOdds,
 		netFractional: netFractional,
+		cents:         cents,
 	}, nil
 }
 
@@ -108,10 +126,36 @@ func NewOddsFromDecimal(decimalOdds float64) (Odds, error) {
 	} else {
 		americanOdds = -100.0 / (decimalOdds - 1.0)
 	}
+	netFractional := decimalOdds - 1.0
+	cents := 100.0 / decimalOdds
 	return Odds{
 		decimalOdds:   decimalOdds,
 		americanOdds:  americanOdds,
-		netFractional: decimalOdds - 1.0,
+		netFractional: netFractional,
+		cents:         cents,
+	}, nil
+}
+
+// NewOddsFromCents constructs a new Odds from the given price in cents of a contract paying 100
+// cents, which must be greater than 0 and less than 100; anything else is an error.
+func NewOddsFromCents(cents float64) (Odds, error) {
+	// Written as the valid range negated, so NaN, which fails every comparison, is rejected too.
+	if !(cents > 0.0 && cents < 100.0) {
+		return Odds{}, fmt.Errorf("invalid cents: %v", cents)
+	}
+	decimalOdds := 100.0 / cents
+	var americanOdds float64
+	if decimalOdds >= 2.0 {
+		americanOdds = (decimalOdds - 1.0) * 100.0
+	} else {
+		americanOdds = -100.0 / (decimalOdds - 1.0)
+	}
+	netFractional := (100.0 - cents) / cents
+	return Odds{
+		decimalOdds:   decimalOdds,
+		americanOdds:  americanOdds,
+		netFractional: netFractional,
+		cents:         cents,
 	}, nil
 }
 
@@ -125,6 +169,11 @@ func (odds Odds) Decimal() float64 {
 	return odds.decimalOdds
 }
 
+// Cents returns the price in cents of a contract paying 100 cents.
+func (odds Odds) Cents() float64 {
+	return odds.cents
+}
+
 func (odds Odds) ToString(of OddsFormat) string {
 	if of == American {
 		if odds.americanOdds >= 0 {
@@ -134,6 +183,8 @@ func (odds Odds) ToString(of OddsFormat) string {
 		}
 	} else if of == Decimal {
 		return fmt.Sprintf("%.2f", odds.decimalOdds)
+	} else if of == Cents {
+		return fmt.Sprintf("%.2f¢", odds.cents)
 	} else {
 		panic("unknown odds format")
 	}
