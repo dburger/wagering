@@ -500,6 +500,17 @@ func assertProbs(t *testing.T, want []float64, odds []Odds) {
 	assert.Equal(t, want, got)
 }
 
+func TestVig(t *testing.T) {
+	// -110/-110: an overround of 2 * 110/210 = 1.047619, a margin of 4.76% and a vig of 4.55%.
+	assert.InDelta(t, 0.0476190/1.0476190, Vig(american(t, -110), american(t, -110)), 1e-6)
+	assert.Equal(t, 0.0455, round(Vig(american(t, -110), american(t, -110)), 4))
+	// A fair market has none, and one priced above fair, an arb, has a negative vig.
+	assert.InDelta(t, 0.0, Vig(decimal(t, 2.0), decimal(t, 2.0)), 1e-12)
+	assert.Less(t, Vig(decimal(t, 2.1), decimal(t, 2.1)), 0.0)
+	// Three outcomes: 1/2 + 1/3.5 + 1/4.2 = 1.02381, a vig of 2.33%.
+	assert.InDelta(t, 0.02381/1.02381, Vig(decimalOdds(t, 2.0, 3.5, 4.2)...), 1e-5)
+}
+
 func TestEqualMarginOdds(t *testing.T) {
 	trueOdds, err := EqualMarginOdds()
 	assert.NotNil(t, err)

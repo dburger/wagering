@@ -227,21 +227,21 @@ func (ao *AverageOdds) Average() (Odds, error) {
 }
 
 func probs(odds ...Odds) []Probability {
-	var probs []Probability
+	var ps []Probability
 	for _, o := range odds {
-		probs = append(probs, o.ImpliedProb())
+		ps = append(ps, o.ImpliedProb())
 	}
-	return probs
+	return ps
 }
 
 // probSum returns the summation of the implied probabilities for the given odds.
 func probSum(odds ...Odds) float64 {
-	probs := probs(odds...)
-	probSum := 0.0
-	for _, p := range probs {
-		probSum += p.decimal
+	ps := probs(odds...)
+	sum := 0.0
+	for _, p := range ps {
+		sum += p.decimal
 	}
-	return probSum
+	return sum
 }
 
 func transOdds(prob func(Odds) float64, odds ...Odds) ([]Odds, error) {
@@ -256,8 +256,25 @@ func transOdds(prob func(Odds) float64, odds ...Odds) ([]Odds, error) {
 	return trans, nil
 }
 
+// overround returns the sum of the implied probabilities of a market's outcomes, one Odds per
+// outcome: 1 for a fair market, and above 1 by the book's margin. -110/-110 is 1.0476.
+func overround(odds ...Odds) float64 {
+	return probSum(odds...)
+}
+
+// margin returns how far a market's overround is above 1, the book's edge on the implied
+// probabilities: -110/-110 has a margin of 0.0476, 4.76%.
 func margin(odds ...Odds) float64 {
-	return probSum(odds...) - 1.0
+	return overround(odds...) - 1.0
+}
+
+// Vig returns the vigorish of a market priced at odds, one Odds per outcome: the book's expected
+// share of all that is staked when the stakes pay the same on every outcome, as a fraction. It is
+// the margin, the amount the implied probabilities sum to above 1, divided by that sum, the
+// overround: -110/-110 has a margin of 4.76% and a vig of 4.55%.
+func Vig(odds ...Odds) float64 {
+	ov := overround(odds...)
+	return (ov - 1.0) / ov
 }
 
 // KellyFraction returns the fraction of the bankroll to wager given the probability
@@ -394,10 +411,10 @@ func EqualMarginOdds(odds ...Odds) ([]Odds, error) {
 	if len(odds) < 2 {
 		return nil, fmt.Errorf("need at least two odds")
 	}
-	probSum := probSum(odds...)
+	ov := overround(odds...)
 	var norms []Odds
 	for _, o := range odds {
-		nodds, err := NewOddsFromDecimal(o.decimalOdds * probSum)
+		nodds, err := NewOddsFromDecimal(o.decimalOdds * ov)
 		if err != nil {
 			return nil, fmt.Errorf("equal margin odds: %w", err)
 		}
@@ -522,12 +539,12 @@ func ShinOdds(odds ...Odds) ([]Odds, error) {
 	if len(odds) < 2 {
 		return nil, fmt.Errorf("need at least two odds")
 	}
-	overround := probSum(odds...)
+	ov := overround(odds...)
 
 	return solveForC(odds, func(o Odds, c float64) float64 {
 		// Only the pi^2 term is divided by the overround, as in Jullien and Salanie
 		// (1994) and Strumbelj (2014).
-		sqrt := math.Sqrt(math.Pow(c, 2.0) + 4.0*(1.0-c)*math.Pow(o.ImpliedProb().decimal, 2.0)/overround)
+		sqrt := math.Sqrt(math.Pow(c, 2.0) + 4.0*(1.0-c)*math.Pow(o.ImpliedProb().decimal, 2.0)/ov)
 		numerator := sqrt - c
 		denominator := 2.0 * (1.0 - c)
 		return numerator / denominator
