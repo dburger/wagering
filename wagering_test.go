@@ -28,6 +28,26 @@ func decimal(t *testing.T, decimalOdds float64) Odds {
 	return odds
 }
 
+// probDecimal returns the Probability for a decimal, failing the test if it's invalid.
+func probDecimal(t *testing.T, decimal float64) Probability {
+	t.Helper()
+	prob, err := NewProbabilityFromDecimal(decimal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return prob
+}
+
+// probPercent returns the Probability for a percent, failing the test if it's invalid.
+func probPercent(t *testing.T, percent float64) Probability {
+	t.Helper()
+	prob, err := NewProbabilityFromPercent(percent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return prob
+}
+
 func TestNewOdds(t *testing.T) {
 	odds, err := NewOdds(2.0, Decimal)
 	assert.Nil(t, err)
@@ -220,7 +240,7 @@ func TestImpliedProbability(t *testing.T) {
 
 func TestOdds_KellyFraction(t *testing.T) {
 	odds := decimal(t, 2.0)
-	prob := NewProbabilityFromDecimal(0.6)
+	prob := probDecimal(t, 0.6)
 	mult := 1.0
 	fraction := odds.KellyFraction(prob, mult)
 	assert.InDeltaf(t, 0.2, fraction, 0.01, "calculating kelly value for %v decimal odds with prob %v and multiplier %v", odds.decimalOdds, prob.percent, mult)
@@ -228,7 +248,7 @@ func TestOdds_KellyFraction(t *testing.T) {
 
 func TestOdds_KellyStake(t *testing.T) {
 	odds := american(t, 200.0)
-	prob := NewProbabilityFromPercent(60.0)
+	prob := probPercent(t, 60.0)
 	mult := 0.25
 	wager := odds.KellyStake(prob, mult, 1000.00)
 	assert.InDeltaf(t, 100, wager, 0.1, "calculating wager for %v decimal odds with prob %v and multiplier %v", odds.decimalOdds, prob.percent, mult)
@@ -261,12 +281,12 @@ func TestOdds_Shorter(t *testing.T) {
 
 func TestOdds_ExpectedValueProb(t *testing.T) {
 	odds := american(t, -110.0)
-	prob := NewProbabilityFromPercent(50.0)
+	prob := probPercent(t, 50.0)
 	ev := odds.ExpectedValueProb(prob)
 	assert.InDeltaf(t, -0.0455, ev, 0.001, "expected value of %v at %v% probability", odds.americanOdds, prob.percent)
 
 	odds = american(t, +180.0)
-	prob = NewProbabilityFromPercent(30.0)
+	prob = probPercent(t, 30.0)
 	ev = odds.ExpectedValueProb(prob)
 	assert.InDeltaf(t, -0.16, ev, 0.001, "expected value of %v at %v% probability", odds.americanOdds, prob.percent)
 }
@@ -375,13 +395,36 @@ func TestMarketWidth(t *testing.T) {
 }
 
 func TestProbabilityConstruction(t *testing.T) {
-	prob := NewProbabilityFromDecimal(0.5)
-	assert.Equal(t, 0.5, prob.decimal)
-	assert.Equal(t, 50.0, prob.percent)
+	prob := probDecimal(t, 0.5)
+	assert.Equal(t, 0.5, prob.Decimal())
+	assert.Equal(t, 50.0, prob.Percent())
 
-	prob = NewProbabilityFromPercent(50.0)
-	assert.Equal(t, 0.5, prob.decimal)
-	assert.Equal(t, 50.0, prob.percent)
+	prob = probPercent(t, 50.0)
+	assert.Equal(t, 0.5, prob.Decimal())
+	assert.Equal(t, 50.0, prob.Percent())
+
+	// The endpoints are probabilities too.
+	assert.Equal(t, 0.0, probDecimal(t, 0.0).Percent())
+	assert.Equal(t, 100.0, probDecimal(t, 1.0).Percent())
+	assert.Equal(t, 1.0, probPercent(t, 100.0).Decimal())
+}
+
+func TestProbabilityInvalid(t *testing.T) {
+	for _, d := range []float64{-0.2, 1.7, -math.SmallestNonzeroFloat64, math.Nextafter(1, 2), math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err := NewProbabilityFromDecimal(d)
+		assert.Error(t, err, "decimal %v", d)
+	}
+	for _, p := range []float64{-1.0, 100.5, 170.0, math.NaN(), math.Inf(1)} {
+		_, err := NewProbabilityFromPercent(p)
+		assert.Error(t, err, "percent %v", p)
+	}
+}
+
+func TestImpliedProbabilityAccessors(t *testing.T) {
+	// -110 breaks even at 110/210.
+	prob := american(t, -110).ImpliedProb()
+	assert.InDelta(t, 110.0/210.0, prob.Decimal(), 1e-15)
+	assert.InDelta(t, 100*110.0/210.0, prob.Percent(), 1e-12)
 }
 
 func dummyAverageOdds(t *testing.T) AverageOdds {

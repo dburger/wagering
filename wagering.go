@@ -312,7 +312,10 @@ func (odds Odds) Shorter(other Odds) bool {
 // ImpliedProb returns the implied probability of the given odds.
 // This computation is equivalent to the break even probability.
 func (odds Odds) ImpliedProb() Probability {
-	return NewProbabilityFromDecimal(1 / odds.decimalOdds)
+	// Odds from a constructor are above 1, so the error can't happen. The zero Odds, which isn't
+	// one, gets probability 0 (see AUDIT.md #1).
+	prob, _ := NewProbabilityFromDecimal(1 / odds.decimalOdds)
+	return prob
 }
 
 // ExpectedValueProb returns the long term expected value when wagering odds
@@ -379,20 +382,41 @@ func MarketWidth(odds1, odds2 Odds) float64 {
 
 // Probability represents a probability and stores the decimal and percent
 // representations. By using Probability, instead of a float, the ambiguity
-// between passing the decimal or percent is removed.
+// between passing the decimal or percent is removed. The constructors accept only
+// a probability from 0 to 1 (0 to 100 percent), so a Probability always holds one.
 type Probability struct {
 	decimal float64
 	percent float64
 }
 
-// NewProbabilityFromPercent constructs a Probability from the given percent.
-func NewProbabilityFromPercent(percent float64) Probability {
-	return Probability{percent / 100.0, percent}
+// NewProbabilityFromPercent constructs a Probability from the given percent, which must be from 0
+// to 100; anything else is an error.
+func NewProbabilityFromPercent(percent float64) (Probability, error) {
+	// Written as the valid range negated, so NaN, which fails every comparison, is rejected too.
+	if !(percent >= 0.0 && percent <= 100.0) {
+		return Probability{}, fmt.Errorf("invalid percent probability: %v", percent)
+	}
+	return Probability{percent / 100.0, percent}, nil
 }
 
-// NewProbabilityFromDecimal constructs a Probability from the given decimal.
-func NewProbabilityFromDecimal(decimal float64) Probability {
-	return Probability{decimal, decimal * 100.0}
+// NewProbabilityFromDecimal constructs a Probability from the given decimal, which must be from 0
+// to 1; anything else is an error.
+func NewProbabilityFromDecimal(decimal float64) (Probability, error) {
+	// Written as the valid range negated, so NaN, which fails every comparison, is rejected too.
+	if !(decimal >= 0.0 && decimal <= 1.0) {
+		return Probability{}, fmt.Errorf("invalid decimal probability: %v", decimal)
+	}
+	return Probability{decimal, decimal * 100.0}, nil
+}
+
+// Decimal returns the probability as a decimal, from 0 to 1.
+func (p Probability) Decimal() float64 {
+	return p.decimal
+}
+
+// Percent returns the probability as a percent, from 0 to 100.
+func (p Probability) Percent() float64 {
+	return p.percent
 }
 
 // Pro bettor nishikori says:
