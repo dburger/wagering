@@ -225,7 +225,7 @@ func (odds Odds) ToString(of OddsFormat) string {
 type AverageOdds struct {
 	probSum   float64
 	weightSum float64
-	invalid   bool // whether any Odds accumulated wasn't Valid, which makes Average an error.
+	err       error // the first invalid Odds or weight accumulated, which Average returns.
 }
 
 // NewAverageOdds constructs a new AverageOdds.
@@ -239,21 +239,27 @@ func (ao *AverageOdds) Accumulate(odds ...Odds) {
 }
 
 // AccumulateWeighted accumulates Odds into AverageOdds, each counting weight times as much
-// as Odds given to Accumulate.
+// as Odds given to Accumulate. weight must be finite and not negative: 0 counts the odds for
+// nothing, and anything else makes Average an error.
 func (ao *AverageOdds) AccumulateWeighted(weight float64, odds ...Odds) {
-	if !allValid(odds...) {
-		ao.invalid = true
+	if ao.err == nil {
+		// Written as the valid range negated, so NaN, which fails every comparison, is caught too.
+		if !(weight >= 0.0) || math.IsInf(weight, 1) {
+			ao.err = fmt.Errorf("invalid weight accumulated: %v", weight)
+		} else if !allValid(odds...) {
+			ao.err = errors.New("invalid odds accumulated")
+		}
 	}
 	ao.probSum += weight * probSum(odds...)
 	ao.weightSum += weight * float64(len(odds))
 }
 
 // Average returns the average Odds for the AverageOdds. It is an error if nothing has been
-// accumulated, if any Odds accumulated wasn't Valid, or if the average implied probability isn't
-// below 1, which no decimal odds give.
+// accumulated, if any Odds or weight accumulated wasn't valid (the first one is reported), or if
+// the average implied probability isn't below 1, which no decimal odds give.
 func (ao *AverageOdds) Average() (Odds, error) {
-	if ao.invalid {
-		return Odds{}, errors.New("invalid odds accumulated")
+	if ao.err != nil {
+		return Odds{}, ao.err
 	}
 	if ao.weightSum == 0 {
 		return Odds{}, errors.New("no odds to average")

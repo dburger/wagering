@@ -1,6 +1,7 @@
 package wagering
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 	"testing"
@@ -491,6 +492,41 @@ func TestAverageOddsWeighted(t *testing.T) {
 			assert.InDeltaf(t, tt.want, avg.decimalOdds, 0.00005, "averaging odds %v", ao)
 		})
 	}
+}
+
+// TestAverageOddsInvalidWeight checks that a weight that's negative, NaN or infinite makes Average
+// an error, reporting the first problem, and that a weight of 0 counts the odds for nothing.
+func TestAverageOddsInvalidWeight(t *testing.T) {
+	for _, weight := range []float64{-1.0, -math.SmallestNonzeroFloat64, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		ao := NewAverageOdds()
+		ao.Accumulate(decimal(t, 2.0))
+		ao.AccumulateWeighted(weight, decimal(t, 3.0))
+		_, err := ao.Average()
+		assert.EqualError(t, err, fmt.Sprintf("invalid weight accumulated: %v", weight))
+	}
+
+	// Before, a negative weight on its own averaged without complaint.
+	ao := NewAverageOdds()
+	ao.AccumulateWeighted(-1.0, decimal(t, 2.1))
+	_, err := ao.Average()
+	assert.EqualError(t, err, "invalid weight accumulated: -1")
+
+	// The first problem is the one reported.
+	ao = NewAverageOdds()
+	ao.AccumulateWeighted(-2.0, decimal(t, 2.0))
+	ao.Accumulate(Odds{})
+	_, err = ao.Average()
+	assert.EqualError(t, err, "invalid weight accumulated: -2")
+
+	// A weight of 0 counts for nothing, on its own and beside other odds.
+	ao = NewAverageOdds()
+	ao.AccumulateWeighted(0.0, decimal(t, 2.0))
+	_, err = ao.Average()
+	assert.EqualError(t, err, "no odds to average")
+	ao.AccumulateWeighted(1.0, decimal(t, 4.0))
+	avg, err := ao.Average()
+	assert.Nil(t, err)
+	assert.Equal(t, 4.0, avg.Decimal())
 }
 
 func round(value float64, places uint) float64 {
