@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// american returns the Odds for american odds, failing the test if they're invalid.
-func american(t *testing.T, americanOdds float64) Odds {
+// fromAmerican returns the Odds for american odds, failing the test if they're invalid.
+func fromAmerican(t *testing.T, americanOdds float64) Odds {
 	t.Helper()
 	odds, err := NewOddsFromAmerican(americanOdds)
 	if err != nil {
@@ -20,8 +20,8 @@ func american(t *testing.T, americanOdds float64) Odds {
 	return odds
 }
 
-// decimal returns the Odds for decimal odds, failing the test if they're invalid.
-func decimal(t *testing.T, decimalOdds float64) Odds {
+// fromDecimal returns the Odds for decimal odds, failing the test if they're invalid.
+func fromDecimal(t *testing.T, decimalOdds float64) Odds {
 	t.Helper()
 	odds, err := NewOddsFromDecimal(decimalOdds)
 	if err != nil {
@@ -126,7 +126,7 @@ func TestNewOddsFromAmericanExact(t *testing.T) {
 		} else {
 			dec, net = big.NewRat(a-100, a), big.NewRat(-100, a)
 		}
-		odds := american(t, float64(a))
+		odds := fromAmerican(t, float64(a))
 		if odds.decimalOdds != nearest(dec) || odds.netFractional != nearest(net) {
 			t.Errorf("american %d: decimal %v, net %v, want %v, %v", a, odds.decimalOdds, odds.netFractional, nearest(dec), nearest(net))
 		}
@@ -145,7 +145,7 @@ func TestNewOddsFromDecimalExact(t *testing.T) {
 			exact.Quo(big.NewRat(-100, 1), exact)
 		}
 		want, _ := exact.Float64()
-		if got := decimal(t, d).americanOdds; got != want {
+		if got := fromDecimal(t, d).americanOdds; got != want {
 			t.Errorf("decimal %v: american %v, want %v", d, got, want)
 		}
 	}
@@ -201,14 +201,14 @@ func TestNewOddsFromProbability(t *testing.T) {
 		f, _ := r.Float64()
 		return f
 	}
-	probs := []float64{0.5, 0.25, 0.75, 0.01, 0.99}
+	chances := []float64{0.5, 0.25, 0.75, 0.01, 0.99}
 	rng := rand.New(rand.NewSource(2))
-	for len(probs) < 20000 {
+	for len(chances) < 20000 {
 		if p := rng.Float64(); p > 0 {
-			probs = append(probs, p)
+			chances = append(chances, p)
 		}
 	}
-	for _, p := range probs {
+	for _, p := range chances {
 		odds, err := NewOddsFromProbability(probDecimal(t, p))
 		if err != nil {
 			t.Fatal(err)
@@ -291,7 +291,7 @@ func TestConvertAmerican(t *testing.T) {
 		{-1000.0, 1.1},
 	}
 	for _, odds := range expectedOdds {
-		converted := american(t, odds.americanOdds)
+		converted := fromAmerican(t, odds.americanOdds)
 		assert.Equal(t, odds.americanOdds, converted.americanOdds, "converting american %v", odds.americanOdds)
 		assert.InDeltaf(t, odds.expectedDecimalOdds, converted.decimalOdds, 0.01, "converting american %v", odds.americanOdds)
 	}
@@ -311,7 +311,7 @@ func TestConvertDecimal(t *testing.T) {
 		{1.1, -1000.0},
 	}
 	for _, odds := range expectedOdds {
-		converted := decimal(t, odds.decimalOdds)
+		converted := fromDecimal(t, odds.decimalOdds)
 		assert.InDeltaf(t, odds.expectedAmericanOdds, converted.americanOdds, 0.01, "converting decimal %v", odds.decimalOdds)
 		assert.Equal(t, odds.decimalOdds, converted.decimalOdds, "converting decimal %v", odds.decimalOdds)
 	}
@@ -331,13 +331,13 @@ func TestImpliedProbability(t *testing.T) {
 		{1.1, 90.90},
 	}
 	for _, ep := range expectedProbabilities {
-		odds := decimal(t, ep.decimalOdds)
+		odds := fromDecimal(t, ep.decimalOdds)
 		assert.InDeltaf(t, ep.prob, odds.ImpliedProb().percent, 0.01, "converting decimal %v", ep.decimalOdds)
 	}
 }
 
 func TestOdds_KellyFraction(t *testing.T) {
-	odds := decimal(t, 2.0)
+	odds := fromDecimal(t, 2.0)
 	prob := probDecimal(t, 0.6)
 	mult := 1.0
 	fraction := odds.KellyFraction(prob, mult)
@@ -345,7 +345,7 @@ func TestOdds_KellyFraction(t *testing.T) {
 }
 
 func TestOdds_KellyStake(t *testing.T) {
-	odds := american(t, 200.0)
+	odds := fromAmerican(t, 200.0)
 	prob := probPercent(t, 60.0)
 	mult := 0.25
 	wager := odds.KellyStake(prob, mult, 1000.00)
@@ -353,99 +353,99 @@ func TestOdds_KellyStake(t *testing.T) {
 }
 
 func TestOdds_Equals(t *testing.T) {
-	odds1 := decimal(t, 1.5)
-	odds2 := decimal(t, 1.5)
-	odds3 := decimal(t, 2.0)
+	odds1 := fromDecimal(t, 1.5)
+	odds2 := fromDecimal(t, 1.5)
+	odds3 := fromDecimal(t, 2.0)
 
 	assert.True(t, odds1.Equals(odds2))
 	assert.False(t, odds2.Equals(odds3))
 }
 
 func TestOdds_Longer(t *testing.T) {
-	odds1 := decimal(t, 1.5)
-	odds2 := decimal(t, 1.5)
-	odds3 := decimal(t, 2.0)
+	odds1 := fromDecimal(t, 1.5)
+	odds2 := fromDecimal(t, 1.5)
+	odds3 := fromDecimal(t, 2.0)
 	assert.True(t, odds3.Longer(odds1))
 	assert.False(t, odds2.Longer(odds1))
 }
 
 func TestOdds_Shorter(t *testing.T) {
-	odds1 := decimal(t, 1.5)
-	odds2 := decimal(t, 1.5)
-	odds3 := decimal(t, 2.0)
+	odds1 := fromDecimal(t, 1.5)
+	odds2 := fromDecimal(t, 1.5)
+	odds3 := fromDecimal(t, 2.0)
 	assert.True(t, odds1.Shorter(odds3))
 	assert.False(t, odds1.Shorter(odds2))
 }
 
 func TestOdds_ExpectedValueProb(t *testing.T) {
-	odds := american(t, -110.0)
+	odds := fromAmerican(t, -110.0)
 	prob := probPercent(t, 50.0)
 	ev := odds.ExpectedValueProb(prob)
 	assert.InDeltaf(t, -0.0455, ev, 0.001, "expected value of %v at %v% probability", odds.americanOdds, prob.percent)
 
-	odds = american(t, +180.0)
+	odds = fromAmerican(t, +180.0)
 	prob = probPercent(t, 30.0)
 	ev = odds.ExpectedValueProb(prob)
 	assert.InDeltaf(t, -0.16, ev, 0.001, "expected value of %v at %v% probability", odds.americanOdds, prob.percent)
 }
 
 func TestOdds_ExpectedValueOdds(t *testing.T) {
-	odds := american(t, -110.0)
-	trueOdds := american(t, +100.0)
+	odds := fromAmerican(t, -110.0)
+	trueOdds := fromAmerican(t, +100.0)
 	ev := odds.ExpectedValueOdds(trueOdds)
 	assert.InDeltaf(t, -0.0455, ev, 0.001, "expected value of %v at %v% odds", odds.americanOdds, trueOdds.Decimal())
 
-	odds = american(t, +180.0)
-	trueOdds = american(t, +233.0)
+	odds = fromAmerican(t, +180.0)
+	trueOdds = fromAmerican(t, +233.0)
 	ev = odds.ExpectedValueOdds(trueOdds)
 	assert.InDeltaf(t, -0.16, ev, 0.001, "expected value of %v at %v% odds", odds.americanOdds, trueOdds.Decimal())
 }
 
 func TestOdds_ArbTo(t *testing.T) {
-	odds1 := american(t, -110.0)
-	odds2 := american(t, -110.0)
+	odds1 := fromAmerican(t, -110.0)
+	odds2 := fromAmerican(t, -110.0)
 	assert.False(t, odds1.ArbTo(odds2))
 	assert.False(t, odds2.ArbTo(odds1))
 
-	odds2 = american(t, 100.0)
+	odds2 = fromAmerican(t, 100.0)
 	assert.False(t, odds1.ArbTo(odds2))
 	assert.False(t, odds2.ArbTo(odds1))
 
-	odds2 = american(t, 109.0)
+	odds2 = fromAmerican(t, 109.0)
 	assert.False(t, odds1.ArbTo(odds2))
 	assert.False(t, odds2.ArbTo(odds1))
 
-	odds2 = american(t, 110.0)
+	odds2 = fromAmerican(t, 110.0)
 	assert.False(t, odds1.ArbTo(odds2))
 	assert.False(t, odds2.ArbTo(odds1))
 
-	odds2 = american(t, 111.0)
+	odds2 = fromAmerican(t, 111.0)
 	assert.True(t, odds1.ArbTo(odds2))
 	assert.True(t, odds2.ArbTo(odds1))
 }
 
 func TestOdds_ArbRoi(t *testing.T) {
-	odds1 := decimal(t, 3.0)
-	odds2 := decimal(t, 3.0)
+	odds1 := fromDecimal(t, 3.0)
+	odds2 := fromDecimal(t, 3.0)
 	assert.Equal(t, 0.5, odds1.ArbRoi(odds2))
 
-	odds1 = american(t, +150)
-	odds2 = american(t, +150)
+	odds1 = fromAmerican(t, +150)
+	odds2 = fromAmerican(t, +150)
 	assert.Equal(t, 0.25, odds1.ArbRoi(odds2))
 
-	odds1 = american(t, -200)
-	odds2 = american(t, -200)
+	odds1 = fromAmerican(t, -200)
+	odds2 = fromAmerican(t, -200)
 	assert.Equal(t, -0.25, odds1.ArbRoi(odds2))
 }
 
 func TestOdds_ToString(t *testing.T) {
-	odds := american(t, +200.0)
+	odds := fromAmerican(t, +200.0)
 	assert.Equal(t, "+200.00", odds.ToString(American))
 	assert.Equal(t, "3.00", odds.ToString(Decimal))
 
 	assert.Equal(t, "33.33¢", odds.ToString(Cents))
 
-	odds = american(t, -200.0)
+	odds = fromAmerican(t, -200.0)
 	assert.Equal(t, "-200.00", odds.ToString(American))
 	assert.Equal(t, "66.67¢", odds.ToString(Cents))
 
@@ -455,7 +455,7 @@ func TestOdds_ToString(t *testing.T) {
 
 	// Any other format gives decimal rather than a panic: Unknown, which OddsFormatFromString
 	// returns with its error, and one it never returns.
-	odds = american(t, +200.0)
+	odds = fromAmerican(t, +200.0)
 	unknown, err := OddsFormatFromString("fractional")
 	assert.Error(t, err)
 	assert.Equal(t, "3.00", odds.ToString(unknown))
@@ -536,16 +536,16 @@ func TestProbabilityInvalid(t *testing.T) {
 
 func TestImpliedProbabilityAccessors(t *testing.T) {
 	// -110 breaks even at 110/210.
-	prob := american(t, -110).ImpliedProb()
+	prob := fromAmerican(t, -110).ImpliedProb()
 	assert.InDelta(t, 110.0/210.0, prob.Decimal(), 1e-15)
 	assert.InDelta(t, 100*110.0/210.0, prob.Percent(), 1e-12)
 }
 
 func dummyAverageOdds(t *testing.T) AverageOdds {
 	ao := NewAverageOdds()
-	ao.Accumulate(decimal(t, 3.0))
-	ao.Accumulate(decimal(t, 5.0))
-	ao.Accumulate(decimal(t, 7.0))
+	ao.Accumulate(fromDecimal(t, 3.0))
+	ao.Accumulate(fromDecimal(t, 5.0))
+	ao.Accumulate(fromDecimal(t, 7.0))
 	return ao
 }
 
@@ -573,8 +573,8 @@ func TestAverageOddsWeighted(t *testing.T) {
 			// (2/3 + 1/5) / 3 = 0.28889
 			name: "weight of two",
 			accumulate: func(ao *AverageOdds) {
-				ao.AccumulateWeighted(2, decimal(t, 3.0))
-				ao.AccumulateWeighted(1, decimal(t, 5.0))
+				ao.AccumulateWeighted(2, fromDecimal(t, 3.0))
+				ao.AccumulateWeighted(1, fromDecimal(t, 5.0))
 			},
 			want: 3.4615,
 		},
@@ -582,8 +582,8 @@ func TestAverageOddsWeighted(t *testing.T) {
 			// (1/7 + 3/3) / 4 = 0.28571, with Accumulate weighing one.
 			name: "mixed with Accumulate",
 			accumulate: func(ao *AverageOdds) {
-				ao.Accumulate(decimal(t, 7.0))
-				ao.AccumulateWeighted(3, decimal(t, 3.0))
+				ao.Accumulate(fromDecimal(t, 7.0))
+				ao.AccumulateWeighted(3, fromDecimal(t, 3.0))
 			},
 			want: 3.5,
 		},
@@ -591,7 +591,7 @@ func TestAverageOddsWeighted(t *testing.T) {
 			// (0.5/2 + 0.5/4) / 1 = 0.375, weights need not be whole.
 			name: "fractional weights",
 			accumulate: func(ao *AverageOdds) {
-				ao.AccumulateWeighted(0.5, decimal(t, 2.0), decimal(t, 4.0))
+				ao.AccumulateWeighted(0.5, fromDecimal(t, 2.0), fromDecimal(t, 4.0))
 			},
 			want: 2.6667,
 		},
@@ -612,31 +612,31 @@ func TestAverageOddsWeighted(t *testing.T) {
 func TestAverageOddsInvalidWeight(t *testing.T) {
 	for _, weight := range []float64{-1.0, -math.SmallestNonzeroFloat64, math.NaN(), math.Inf(1), math.Inf(-1)} {
 		ao := NewAverageOdds()
-		ao.Accumulate(decimal(t, 2.0))
-		ao.AccumulateWeighted(weight, decimal(t, 3.0))
+		ao.Accumulate(fromDecimal(t, 2.0))
+		ao.AccumulateWeighted(weight, fromDecimal(t, 3.0))
 		_, err := ao.Average()
 		assert.EqualError(t, err, fmt.Sprintf("invalid weight accumulated: %v", weight))
 	}
 
 	// Before, a negative weight on its own averaged without complaint.
 	ao := NewAverageOdds()
-	ao.AccumulateWeighted(-1.0, decimal(t, 2.1))
+	ao.AccumulateWeighted(-1.0, fromDecimal(t, 2.1))
 	_, err := ao.Average()
 	assert.EqualError(t, err, "invalid weight accumulated: -1")
 
 	// The first problem is the one reported.
 	ao = NewAverageOdds()
-	ao.AccumulateWeighted(-2.0, decimal(t, 2.0))
+	ao.AccumulateWeighted(-2.0, fromDecimal(t, 2.0))
 	ao.Accumulate(Odds{})
 	_, err = ao.Average()
 	assert.EqualError(t, err, "invalid weight accumulated: -2")
 
 	// A weight of 0 counts for nothing, on its own and beside other odds.
 	ao = NewAverageOdds()
-	ao.AccumulateWeighted(0.0, decimal(t, 2.0))
+	ao.AccumulateWeighted(0.0, fromDecimal(t, 2.0))
 	_, err = ao.Average()
 	assert.EqualError(t, err, "no odds to average")
-	ao.AccumulateWeighted(1.0, decimal(t, 4.0))
+	ao.AccumulateWeighted(1.0, fromDecimal(t, 4.0))
 	avg, err := ao.Average()
 	assert.Nil(t, err)
 	assert.Equal(t, 4.0, avg.Decimal())
@@ -651,33 +651,33 @@ func round(value float64, places uint) float64 {
 // https://winnerodds.com/valuebettingblog/true-odds-calculator/
 // for win, draw, win for Real Madrid versus Aletico de Madrid.
 func sampleOdds1(t *testing.T) []Odds {
-	return []Odds{decimal(t, 2.09), decimal(t, 3.59), decimal(t, 3.77)}
+	return []Odds{fromDecimal(t, 2.09), fromDecimal(t, 3.59), fromDecimal(t, 3.77)}
 }
 
 // sampleOdds2 returns the Odds from the tests at
 // https://github.com/mberk/shin/blob/master/tests/test_shin.py.
 func sampleOdds2(t *testing.T) []Odds {
-	return []Odds{decimal(t, 2.6), decimal(t, 2.4), decimal(t, 4.3)}
+	return []Odds{fromDecimal(t, 2.6), fromDecimal(t, 2.4), fromDecimal(t, 4.3)}
 }
 
 // tenRunners returns a field of ten runners at a 20% margin, as a race or a
 // futures market has. The old fixed point solver never converged on it for
 // Shin or the logarithmic method.
 func tenRunners(t *testing.T) []Odds {
-	return decimalOdds(t, 11.14, 5.97, 52.76, 10.9, 5.76, 5.11, 10.44, 10.55, 11.02, 5.51)
+	return oddsFromDecimals(t, 11.14, 5.97, 52.76, 10.9, 5.76, 5.11, 10.44, 10.55, 11.02, 5.51)
 }
 
 // underround returns a two way market whose implied probabilities sum to
 // 95.6%, which the solvers must push the other way.
 func underround(t *testing.T) []Odds {
-	return decimalOdds(t, 1.8, 2.5)
+	return oddsFromDecimals(t, 1.8, 2.5)
 }
 
-func decimalOdds(t *testing.T, prices ...float64) []Odds {
+func oddsFromDecimals(t *testing.T, prices ...float64) []Odds {
 	t.Helper()
 	var odds []Odds
 	for _, p := range prices {
-		odds = append(odds, decimal(t, p))
+		odds = append(odds, fromDecimal(t, p))
 	}
 	return odds
 }
@@ -694,20 +694,20 @@ func assertProbs(t *testing.T, want []float64, odds []Odds) {
 
 func TestVig(t *testing.T) {
 	// -110/-110: an overround of 2 * 110/210 = 1.047619, a margin of 4.76% and a vig of 4.55%.
-	assert.InDelta(t, 0.0476190/1.0476190, Vig(american(t, -110), american(t, -110)), 1e-6)
-	assert.Equal(t, 0.0455, round(Vig(american(t, -110), american(t, -110)), 4))
+	assert.InDelta(t, 0.0476190/1.0476190, Vig(fromAmerican(t, -110), fromAmerican(t, -110)), 1e-6)
+	assert.Equal(t, 0.0455, round(Vig(fromAmerican(t, -110), fromAmerican(t, -110)), 4))
 	// A fair market has none, and one priced above fair, an arb, has a negative vig.
-	assert.InDelta(t, 0.0, Vig(decimal(t, 2.0), decimal(t, 2.0)), 1e-12)
-	assert.Less(t, Vig(decimal(t, 2.1), decimal(t, 2.1)), 0.0)
+	assert.InDelta(t, 0.0, Vig(fromDecimal(t, 2.0), fromDecimal(t, 2.0)), 1e-12)
+	assert.Less(t, Vig(fromDecimal(t, 2.1), fromDecimal(t, 2.1)), 0.0)
 	// Three outcomes: 1/2 + 1/3.5 + 1/4.2 = 1.02381, a vig of 2.33%.
-	assert.InDelta(t, 0.02381/1.02381, Vig(decimalOdds(t, 2.0, 3.5, 4.2)...), 1e-5)
+	assert.InDelta(t, 0.02381/1.02381, Vig(oddsFromDecimals(t, 2.0, 3.5, 4.2)...), 1e-5)
 }
 
 func TestEqualMarginOdds(t *testing.T) {
 	trueOdds, err := EqualMarginOdds()
 	assert.NotNil(t, err)
 
-	trueOdds, err = EqualMarginOdds(decimal(t, 2.0))
+	trueOdds, err = EqualMarginOdds(fromDecimal(t, 2.0))
 	assert.NotNil(t, err)
 
 	trueOdds, err = EqualMarginOdds(sampleOdds1(t)...)
@@ -721,7 +721,7 @@ func TestMPTOdds(t *testing.T) {
 	trueOdds, err := MPTOdds()
 	assert.NotNil(t, err)
 
-	trueOdds, err = MPTOdds(decimal(t, 2.0))
+	trueOdds, err = MPTOdds(fromDecimal(t, 2.0))
 	assert.NotNil(t, err)
 
 	trueOdds, err = MPTOdds(sampleOdds1(t)...)
@@ -734,12 +734,12 @@ func TestMPTOdds(t *testing.T) {
 	// in a wide enough book has more taken than it has. An 18.3% margin over
 	// three prices takes 6.1% from the +1900's 5%. The others then sum to over
 	// one, so none of them is fair either.
-	trueOdds, err = MPTOdds(american(t, -400), american(t, 200), american(t, 1900))
+	trueOdds, err = MPTOdds(fromAmerican(t, -400), fromAmerican(t, 200), fromAmerican(t, 1900))
 	assert.Nil(t, trueOdds)
 	assert.NotNil(t, err)
 
 	// A 5% margin takes 1.7% from the same longshot.
-	trueOdds, err = MPTOdds(american(t, -300), american(t, 300), american(t, 1900))
+	trueOdds, err = MPTOdds(fromAmerican(t, -300), fromAmerican(t, 300), fromAmerican(t, 1900))
 	assert.Nil(t, err)
 	assertProbs(t, []float64{0.7333333, 0.2333333, 0.0333333}, trueOdds)
 }
@@ -748,7 +748,7 @@ func TestShinOdds(t *testing.T) {
 	trueOdds, err := ShinOdds()
 	assert.NotNil(t, err)
 
-	trueOdds, err = ShinOdds(decimal(t, 2.0))
+	trueOdds, err = ShinOdds(fromDecimal(t, 2.0))
 	assert.NotNil(t, err)
 
 	trueOdds, err = ShinOdds(sampleOdds1(t)...)
@@ -777,7 +777,7 @@ func TestOddsRatioOdds(t *testing.T) {
 	trueOdds, err := OddsRatioOdds()
 	assert.NotNil(t, err)
 
-	trueOdds, err = OddsRatioOdds(decimal(t, 2.0))
+	trueOdds, err = OddsRatioOdds(fromDecimal(t, 2.0))
 	assert.NotNil(t, err)
 
 	trueOdds, err = OddsRatioOdds(sampleOdds1(t)...)
@@ -798,15 +798,15 @@ func TestOddsRatioOdds(t *testing.T) {
 	// brings the sum down to one. The constructors reject 1.0, so it's made
 	// directly, and the check that every Odds is Valid rejects it, as it does
 	// the zero Odds, before the solver runs.
-	_, err = OddsRatioOdds(Odds{decimalOdds: 1.0, netFractional: 0}, decimal(t, 2.0))
-	assert.EqualError(t, err, "invalid odds at 0: decimal 1")
+	_, err = OddsRatioOdds(Odds{decimalOdds: 1.0, netFractional: 0}, fromDecimal(t, 2.0))
+	assert.EqualError(t, err, "OddsRatioOdds: invalid odds at 0: decimal 1")
 }
 
 func TestLogarithmicOdds(t *testing.T) {
 	trueOdds, err := LogarithmicOdds()
 	assert.NotNil(t, err)
 
-	trueOdds, err = LogarithmicOdds(decimal(t, 2.0))
+	trueOdds, err = LogarithmicOdds(fromDecimal(t, 2.0))
 	assert.NotNil(t, err)
 
 	trueOdds, err = LogarithmicOdds(sampleOdds1(t)...)
@@ -827,15 +827,15 @@ func TestLogarithmicOdds(t *testing.T) {
 	// brings the sum down to one. The constructors reject 1.0, so it's made
 	// directly, and the check that every Odds is Valid rejects it, as it does
 	// the zero Odds, before the solver runs.
-	_, err = LogarithmicOdds(Odds{decimalOdds: 1.0, netFractional: 0}, decimal(t, 2.0))
-	assert.EqualError(t, err, "invalid odds at 0: decimal 1")
+	_, err = LogarithmicOdds(Odds{decimalOdds: 1.0, netFractional: 0}, fromDecimal(t, 2.0))
+	assert.EqualError(t, err, "LogarithmicOdds: invalid odds at 0: decimal 1")
 }
 
 func TestProbitOdds(t *testing.T) {
 	trueOdds, err := ProbitOdds()
 	assert.NotNil(t, err)
 
-	trueOdds, err = ProbitOdds(decimal(t, 2.0))
+	trueOdds, err = ProbitOdds(fromDecimal(t, 2.0))
 	assert.NotNil(t, err)
 
 	trueOdds, err = ProbitOdds(sampleOdds1(t)...)
@@ -856,8 +856,8 @@ func TestProbitOdds(t *testing.T) {
 	// brings the sum down to one. The constructors reject 1.0, so it's made
 	// directly, and the check that every Odds is Valid rejects it, as it does
 	// the zero Odds, before the solver runs.
-	_, err = ProbitOdds(Odds{decimalOdds: 1.0, netFractional: 0}, decimal(t, 2.0))
-	assert.EqualError(t, err, "invalid odds at 0: decimal 1")
+	_, err = ProbitOdds(Odds{decimalOdds: 1.0, netFractional: 0}, fromDecimal(t, 2.0))
+	assert.EqualError(t, err, "ProbitOdds: invalid odds at 0: decimal 1")
 }
 
 func TestOdds_Meg(t *testing.T) {
@@ -878,8 +878,8 @@ func TestOdds_Meg(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			odds := decimal(t, tt.decimalOdds)
-			trueOdds := decimal(t, 1/tt.prob)
+			odds := fromDecimal(t, tt.decimalOdds)
+			trueOdds := fromDecimal(t, 1/tt.prob)
 			assert.InDelta(t, tt.want, odds.Meg(trueOdds), 1e-5)
 		})
 	}
@@ -890,7 +890,7 @@ func TestOdds_Meg(t *testing.T) {
 // from the devig functions and from an average it went into.
 func TestInvalidOdds(t *testing.T) {
 	var zero Odds
-	price := decimal(t, 1.5)
+	price := fromDecimal(t, 1.5)
 	half := probDecimal(t, 0.5)
 
 	assert.False(t, zero.Valid())
@@ -921,7 +921,9 @@ func TestInvalidOdds(t *testing.T) {
 		"OddsRatioOdds": OddsRatioOdds, "LogarithmicOdds": LogarithmicOdds, "ProbitOdds": ProbitOdds,
 	} {
 		_, err := devig(price, zero)
-		assert.EqualError(t, err, "invalid odds at 1: decimal 0", name)
+		assert.EqualError(t, err, name+": invalid odds at 1: decimal 0", name)
+		_, err = devig(price)
+		assert.EqualError(t, err, name+": need at least two odds", name)
 	}
 
 	ao := NewAverageOdds()

@@ -43,8 +43,13 @@ today. Most findings are gaps in the library's contract, and a few are traps for
 14. **The devig functions don't give their common names.** `EqualMarginOdds` is the
     multiplicative method and `MPTOdds` the additive one; plays maps the names itself. A line each
     would help.
+    **Fixed 2026-10-23** (branch `cleanups`): `EqualMarginOdds` says it's the multiplicative
+    method and `LogarithmicOdds` the power method (`MPTOdds` already said additive), and the README
+    has a table of all six with their common names.
 15. **The README is three lines.** A short list of the odds formats, the devig methods and the
     units would cover it.
+    **Fixed 2026-10-23** (branch `cleanups`): it covers the formats and constructors, exactness
+    and validation, the calculations and their units, and the devig methods.
 
 ## Tests and housekeeping
 
@@ -55,11 +60,19 @@ today. Most findings are gaps in the library's contract, and a few are traps for
     `Odds.decimalOdds` field, so rename the helpers, e.g. `oddsFromDecimals` and `fromDecimal`.
     Neither `go vet` nor the x/tools `shadow` analyzer (even with `-strict`) reports a local that
     hides a package-level function, so this needs a reader's eye.
+    **Fixed 2026-10-23** (branch `cleanups`): `fromAmerican`, `fromDecimal` and
+    `oddsFromDecimals` (the first too, since `oddsFromProb` has an `american` local), and a test's
+    `probs` local is `chances`. A scan of the package finds no local or parameter sharing a
+    package-level name.
 17. Smaller things:
     - Five devig functions return "need at least two odds" without saying which one failed.
     - `go.mod` says `go 1.20`, while odds and plays are on Go 1.26.
     - `solveForC` recomputes each price's implied probability on every bisection step. That's
       cheap at today's scale, so it's low priority.
+    **Fixed 2026-10-23** (branch `cleanups`): the devig functions' errors name the function
+    (`ProbitOdds: need at least two odds`), through one `checkMarket`; `go.mod` says `go 1.26`;
+    and `solveForC` computes each implied probability once and passes it to its method, whose
+    output is unchanged (plays' on a real props snapshot is identical, 60,305 lines).
 
 ## Suggested order
 

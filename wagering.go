@@ -233,6 +233,18 @@ func allValid(odds ...Odds) bool {
 	return true
 }
 
+// checkMarket returns an error, naming the devig function name, if odds isn't a market it can
+// devig: two or more outcomes, every one Valid.
+func checkMarket(name string, odds ...Odds) error {
+	if len(odds) < 2 {
+		return fmt.Errorf("%s: need at least two odds", name)
+	}
+	if err := checkValid(odds...); err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
+	return nil
+}
+
 // checkValid returns an error naming the first of odds that isn't Valid, for the devig functions.
 func checkValid(odds ...Odds) error {
 	for i, o := range odds {
@@ -341,10 +353,12 @@ func probSum(odds ...Odds) float64 {
 	return sum
 }
 
-func transOdds(prob func(Odds) float64, odds ...Odds) ([]Odds, error) {
+// transOdds returns the Odds for each of odds' true probability, as prob gives it from the odds
+// and its index.
+func transOdds(prob func(i int, o Odds) float64, odds ...Odds) ([]Odds, error) {
 	var trans []Odds
-	for _, o := range odds {
-		todds, err := oddsFromProbFloat(prob(o))
+	for i, o := range odds {
+		todds, err := oddsFromProbFloat(prob(i, o))
 		if err != nil {
 			return nil, fmt.Errorf("devigged odds: %w", err)
 		}
@@ -540,12 +554,10 @@ func (p Probability) Percent() float64 {
 // https://outlier.bet/wp-content/uploads/2023/08/2017-clarke-adjusting_bookmakers_odds.pdf
 // https://winnerodds.com/valuebettingblog/true-odds-calculator/
 
-// EqualMarginOdds gives the odds of the given Odds using the method of simple normalization.
+// EqualMarginOdds gives the odds of the given Odds using the method of simple normalization, also
+// known as the multiplicative method: each implied probability is divided by the overround.
 func EqualMarginOdds(odds ...Odds) ([]Odds, error) {
-	if len(odds) < 2 {
-		return nil, fmt.Errorf("need at least two odds")
-	}
-	if err := checkValid(odds...); err != nil {
+	if err := checkMarket("EqualMarginOdds", odds...); err != nil {
 		return nil, err
 	}
 	ov := overround(odds...)
@@ -568,10 +580,7 @@ func EqualMarginOdds(odds ...Odds) ([]Odds, error) {
 // implied probability holds, which leaves it at zero or below. The others still
 // sum to one with it, so none of them is fair either, and an error is returned.
 func MPTOdds(odds ...Odds) ([]Odds, error) {
-	if len(odds) < 2 {
-		return nil, fmt.Errorf("need at least two odds")
-	}
-	if err := checkValid(odds...); err != nil {
+	if err := checkMarket("MPTOdds", odds...); err != nil {
 		return nil, err
 	}
 	n := float64(len(odds))
@@ -607,11 +616,16 @@ func MPTOdds(odds ...Odds) ([]Odds, error) {
 //
 // lowest may be math.Inf(-1) and highest math.Inf(1). An error is returned when
 // no c makes the probabilities sum to one, as for a price of 1.0.
-func solveForC(odds []Odds, prob func(o Odds, c float64) float64, start, lowest, highest float64) ([]Odds, error) {
+func solveForC(odds []Odds, prob func(o Odds, p, c float64) float64, start, lowest, highest float64) ([]Odds, error) {
+	// Each implied probability, p, once, rather than at every step of the search.
+	ps := make([]float64, len(odds))
+	for i, o := range odds {
+		ps[i] = o.ImpliedProb().decimal
+	}
 	excess := func(c float64) float64 {
 		sum := 0.0
-		for _, o := range odds {
-			sum += prob(o, c)
+		for i, o := range odds {
+			sum += prob(o, ps[i], c)
 		}
 		return sum - 1.0
 	}
@@ -667,7 +681,7 @@ func solveForC(odds []Odds, prob func(o Odds, c float64) float64, start, lowest,
 		}
 	}
 	c := (over + under) / 2.0
-	return transOdds(func(o Odds) float64 { return prob(o, c) }, odds...)
+	return transOdds(func(i int, o Odds) float64 { return prob(o, ps[i], c) }, odds...)
 }
 
 // ShinOdds implements Shin's approach, which models the vig as the book's
@@ -676,18 +690,15 @@ func solveForC(odds []Odds, prob func(o Odds, c float64) float64, start, lowest,
 // whose implied probabilities sum to less than one, which Shin's model does not
 // describe but the formula still devigs.
 func ShinOdds(odds ...Odds) ([]Odds, error) {
-	if len(odds) < 2 {
-		return nil, fmt.Errorf("need at least two odds")
-	}
-	if err := checkValid(odds...); err != nil {
+	if err := checkMarket("ShinOdds", odds...); err != nil {
 		return nil, err
 	}
 	ov := overround(odds...)
 
-	return solveForC(odds, func(o Odds, c float64) float64 {
+	return solveForC(odds, func(_ Odds, p, c float64) float64 {
 		// Only the pi^2 term is divided by the overround, as in Jullien and Salanie
 		// (1994) and Strumbelj (2014).
-		sqrt := math.Sqrt(math.Pow(c, 2.0) + 4.0*(1.0-c)*math.Pow(o.ImpliedProb().decimal, 2.0)/ov)
+		sqrt := math.Sqrt(math.Pow(c, 2.0) + 4.0*(1.0-c)*math.Pow(p, 2.0)/ov)
 		numerator := sqrt - c
 		denominator := 2.0 * (1.0 - c)
 		return numerator / denominator
@@ -698,32 +709,27 @@ func ShinOdds(odds ...Odds) ([]Odds, error) {
 // the p / (1 - p) sense) of every implied probability by the same c.
 // https://www.sportstradingnetwork.com/article/fixed-odds-betting-traditional-odds/
 func OddsRatioOdds(odds ...Odds) ([]Odds, error) {
-	if len(odds) < 2 {
-		return nil, fmt.Errorf("need at least two odds")
-	}
-	if err := checkValid(odds...); err != nil {
+	if err := checkMarket("OddsRatioOdds", odds...); err != nil {
 		return nil, err
 	}
 	// c runs over the positive numbers. Solved for in its log, since c ranges over
 	// orders of magnitude and a log spreads them evenly for bisection.
-	return solveForC(odds, func(o Odds, logC float64) float64 {
+	return solveForC(odds, func(o Odds, p, logC float64) float64 {
 		c := math.Exp(logC)
-		return o.ImpliedProb().decimal / (c + ((1.0 - c) / (o.decimalOdds)))
+		return p / (c + ((1.0 - c) / (o.decimalOdds)))
 	}, 0.0, math.Inf(-1), math.Inf(1))
 }
 
-// LogarithmicOdds implements the "logarithmic" approach, which raises each
-// implied probability to the power c.
+// LogarithmicOdds implements the "logarithmic" approach, also known as the power
+// method, which raises each implied probability to the power c.
 func LogarithmicOdds(odds ...Odds) ([]Odds, error) {
-	if len(odds) < 2 {
-		return nil, fmt.Errorf("need at least two odds")
-	}
-	if err := checkValid(odds...); err != nil {
+	if err := checkMarket("LogarithmicOdds", odds...); err != nil {
 		return nil, err
 	}
 	// c runs over the positive numbers, solved for in its log as in OddsRatioOdds.
-	return solveForC(odds, func(o Odds, logC float64) float64 {
-		return math.Pow(1.0/o.decimalOdds, math.Exp(logC))
+	return solveForC(odds, func(_ Odds, p, logC float64) float64 {
+		// p is 1/decimalOdds, as ImpliedProb computes it.
+		return math.Pow(p, math.Exp(logC))
 	}, 0.0, math.Inf(-1), math.Inf(1))
 }
 
@@ -732,15 +738,12 @@ func LogarithmicOdds(odds ...Odds) ([]Odds, error) {
 // normal: true probability = Phi(Phi^-1(p) - c). It is the odds ratio approach
 // with the normal distribution in place of the logistic one.
 func ProbitOdds(odds ...Odds) ([]Odds, error) {
-	if len(odds) < 2 {
-		return nil, fmt.Errorf("need at least two odds")
-	}
-	if err := checkValid(odds...); err != nil {
+	if err := checkMarket("ProbitOdds", odds...); err != nil {
 		return nil, err
 	}
 	// Phi^-1(p) = sqrt(2) * erfinv(2p - 1) and Phi(x) = erfc(-x / sqrt(2)) / 2.
-	return solveForC(odds, func(o Odds, c float64) float64 {
-		z := math.Sqrt2 * math.Erfinv(2.0*o.ImpliedProb().decimal-1.0)
+	return solveForC(odds, func(_ Odds, p, c float64) float64 {
+		z := math.Sqrt2 * math.Erfinv(2.0*p-1.0)
 		return math.Erfc(-(z-c)/math.Sqrt2) / 2.0
 	}, 0.0, math.Inf(-1), math.Inf(1))
 }
