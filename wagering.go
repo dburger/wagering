@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 )
 
 // Odds is a price, in every format. Make one with a constructor: the zero Odds isn't a price, and
@@ -140,20 +141,29 @@ func NewOddsFromDecimal(decimalOdds float64) (Odds, error) {
 }
 
 // NewOddsFromCents constructs a new Odds from the given price in cents of a contract paying 100
-// cents, which must be greater than 0 and less than 100; anything else is an error.
+// cents, which must be greater than 0 and less than 100; anything else is an error. Every format is
+// the float64 nearest its exact value for the given cents.
 func NewOddsFromCents(cents float64) (Odds, error) {
 	// Written as the valid range negated, so NaN, which fails every comparison, is rejected too.
 	if !(cents > 0.0 && cents < 100.0) {
 		return Odds{}, fmt.Errorf("invalid cents: %v", cents)
 	}
+	// One division, so it rounds once.
 	decimalOdds := 100.0 / cents
+	// American and net fractional odds take a subtraction and a division, or a multiplication and
+	// a division, and in float64 each rounds, which missed the nearest float64 for more than half of
+	// all prices. So they're computed exactly from cents' own value, and rounded once.
+	c := new(big.Rat).SetFloat64(cents)
+	net := new(big.Rat).Sub(big.NewRat(100, 1), c) // what a contract wins, in cents
+	netFractional, _ := new(big.Rat).Quo(net, c).Float64()
 	var americanOdds float64
-	if decimalOdds >= 2.0 {
-		americanOdds = (decimalOdds - 1.0) * 100.0
+	if cents <= 50.0 {
+		// The underdog side, decimal odds of 2 or more: the win on 100 staked.
+		americanOdds, _ = new(big.Rat).Quo(new(big.Rat).Mul(net, big.NewRat(100, 1)), c).Float64()
 	} else {
-		americanOdds = -100.0 / (decimalOdds - 1.0)
+		// The favorite: the stake to win 100, negative.
+		americanOdds, _ = new(big.Rat).Quo(new(big.Rat).Mul(c, big.NewRat(-100, 1)), net).Float64()
 	}
-	netFractional := (100.0 - cents) / cents
 	return Odds{
 		decimalOdds:   decimalOdds,
 		americanOdds:  americanOdds,

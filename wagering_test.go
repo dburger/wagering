@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -147,6 +148,48 @@ func TestNewOddsFromDecimalExact(t *testing.T) {
 		if got := decimal(t, d).americanOdds; got != want {
 			t.Errorf("decimal %v: american %v, want %v", d, got, want)
 		}
+	}
+}
+
+// TestNewOddsFromCentsExact checks that cents give the float64 nearest their exact decimal,
+// american and net fractional odds: every tenth of a cent, and prices drawn at random.
+func TestNewOddsFromCentsExact(t *testing.T) {
+	nearest := func(r *big.Rat) float64 {
+		f, _ := r.Float64()
+		return f
+	}
+	prices := []float64{50}
+	for tenths := 1; tenths < 1000; tenths++ {
+		prices = append(prices, float64(tenths)/10)
+	}
+	rng := rand.New(rand.NewSource(1))
+	for len(prices) < 21000 {
+		if c := rng.Float64() * 100; c > 0 {
+			prices = append(prices, c)
+		}
+	}
+	for _, cents := range prices {
+		c := new(big.Rat).SetFloat64(cents)
+		net := new(big.Rat).Sub(big.NewRat(100, 1), c)
+		dec := new(big.Rat).Quo(big.NewRat(100, 1), c)
+		var am *big.Rat
+		if cents <= 50 {
+			am = new(big.Rat).Quo(new(big.Rat).Mul(net, big.NewRat(100, 1)), c)
+		} else {
+			am = new(big.Rat).Quo(new(big.Rat).Mul(c, big.NewRat(-100, 1)), net)
+		}
+		odds, err := NewOddsFromCents(cents)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if odds.decimalOdds != nearest(dec) || odds.americanOdds != nearest(am) || odds.netFractional != nearest(new(big.Rat).Quo(net, c)) {
+			t.Errorf("cents %v: decimal %v, american %v, net %v, want %v, %v, %v", cents,
+				odds.decimalOdds, odds.americanOdds, odds.netFractional, nearest(dec), nearest(am), nearest(new(big.Rat).Quo(net, c)))
+		}
+	}
+	// Even money is +100, as from decimal odds of 2.
+	if odds, _ := NewOddsFromCents(50); odds.americanOdds != 100 {
+		t.Errorf("50 cents: american %v, want +100", odds.americanOdds)
 	}
 }
 

@@ -15,7 +15,7 @@ today. Most findings are gaps in the library's contract, and a few are traps for
 | 2 | **`Probability` accepts anything** (1.7, -0.2, NaN) and has **no exported accessors**, so callers outside the package can neither check it nor read it back. | probe: `NewProbabilityFromDecimal(1.7)` holds 170% | **Fixed 2026-10-23** (branch `probability-validation`): `NewProbabilityFromDecimal` and `NewProbabilityFromPercent` return an error outside 0 to 1 (0 to 100 percent), NaN and infinities included, and `Decimal()` and `Percent()` read a `Probability` back. |
 | 3 | **`AccumulateWeighted` accepts negative or NaN weights.** A weight of -1 averages without complaint, and mixing signs gives garbage. plays checks its weights first; the library doesn't. | probe | **Fixed 2026-10-23** (branch `average-weights`): a negative, NaN or infinite weight makes `Average` an error naming it. A weight of 0 still counts its odds for nothing, rather than being rejected as suggested, since plays treats sharps whose weights are all 0 as giving no true odds. `AverageOdds` keeps the first problem, an invalid weight or `Odds`, and `Average` returns it. |
 | 4 | **`ToString(Unknown)` panics,** yet `Unknown` is what `OddsFormatFromString` returns with its error. | probe | **Fixed 2026-10-23** (branch `tostring-fallback`): any format but american and cents, `Unknown` included, gives decimal, as a price in the wrong format is still the right price. `ToString` is documented, and the library has no `panic` left. |
-| 5 | **Cents' american odds aren't exact.** 544 of the 998 tenth-of-a-cent prices miss the nearest float64, by a relative error of at most 7.65e-14. Harmless in practice, but it's the one constructor that breaks the rule stated above the constructors, which american and decimal follow (and test). | probe | Compute american directly from cents: -100c / (100 - c) above 50 cents, 100(100 - c) / c below. |
+| 5 | **Cents' american odds aren't exact.** 544 of the 998 tenth-of-a-cent prices miss the nearest float64, by a relative error of at most 7.65e-14. Harmless in practice, but it's the one constructor that breaks the rule stated above the constructors, which american and decimal follow (and test). | probe | **Fixed 2026-10-23** (branch `cents-exact`): american and net fractional odds are computed exactly with `math/big` rationals from cents' own value and rounded once, as no float64 formula managed (computing them directly in float64 still missed 24% to 31% of prices, and an FMA-corrected version 10%). `TestNewOddsFromCentsExact` checks every tenth of a cent and 20,000 random prices; master's code fails 12,956 of them. |
 
 ## API design
 
@@ -57,6 +57,6 @@ today. Most findings are gaps in the library's contract, and a few are traps for
 
 ## Suggested order
 
-1. **#1 to #5 and #9:** they close the traps without breaking any caller. #1 to #4 are fixed.
+1. **#1 to #5 and #9:** they close the traps without breaking any caller. #1 to #5 are fixed.
 2. **#6, #12 and #13:** cheap, and #6 keeps the identifiers callers use.
 3. **#7, #8, #10 and #11:** API choices to decide first, since #10 changes what plays receives.
