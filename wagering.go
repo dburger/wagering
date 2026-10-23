@@ -2,20 +2,25 @@
 Package wagering provides types for representing odds and performing computations
 related to wagering.
 
-Typical usage:
+Typical usage, a stake at 0.3 Kelly on a 60% chance at -110 (ExampleOdds_KellyStake):
 
-	likelihood := 0.6
-	multiplier := 0.3
-	bankroll := 10000.0
 	odds, err := wagering.NewOddsFromAmerican(-110.0)
 	if err != nil {
 		return err
 	}
-	wager := odds.KellyStake(likelihood, multiplier, bankroll)
+	likelihood, err := wagering.NewProbabilityFromDecimal(0.6)
+	if err != nil {
+		return err
+	}
+	wager := odds.KellyStake(likelihood, 0.3, 10000.0) // 480
 
-Note that when odds are constructed from american or decimal odds, that value is
-held explicitly and the other format is computed but may suffer from minor rounding
-skew.
+An Odds holds its price in every format, each computed directly from the value it was
+constructed from, so each is the float64 nearest its exact value: always for odds made
+from decimal odds, cents or a probability, and for odds made from american odds when
+those are whole numbers.
+
+Results are fractions, 0.05 for 5%, except Meg, which is in basis points, and MarketWidth,
+which is in american points.
 */
 package wagering
 
@@ -419,8 +424,8 @@ func (odds Odds) ImpliedProb() Probability {
 }
 
 // ExpectedValueProb returns the long term expected value when wagering odds
-// at the given probability. The result is given as the percent increase or
-// decrease (negative) of the wager. It is 0 for odds that aren't Valid.
+// at the given probability, per unit staked, as a fraction: 0.05 is a 5% gain on
+// the wager, and a negative value a loss. It is 0 for odds that aren't Valid.
 func (odds Odds) ExpectedValueProb(prob Probability) float64 {
 	if !odds.Valid() {
 		return 0.0
@@ -429,8 +434,8 @@ func (odds Odds) ExpectedValueProb(prob Probability) float64 {
 }
 
 // ExpectedValueOdds returns the long term expected value when wagering odds
-// at the given true odds.  The result is given as the percent increase or
-// decrease (negative) of the wager. It is 0 if either isn't Valid.
+// at the given true odds, per unit staked, as a fraction: 0.05 is a 5% gain on
+// the wager, and a negative value a loss. It is 0 if either isn't Valid.
 func (odds Odds) ExpectedValueOdds(trueOdds Odds) float64 {
 	if !trueOdds.Valid() {
 		return 0.0

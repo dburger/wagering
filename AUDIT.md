@@ -32,8 +32,14 @@ today. Most findings are gaps in the library's contract, and a few are traps for
 
 12. **The package example doesn't compile.** It passes a `float64` likelihood to `KellyStake`,
     which takes a `Probability`. Its note on precision also leaves out cents.
+    **Fixed 2026-10-23** (branch `doc-fixes`): the example builds its `Probability` with
+    `NewProbabilityFromDecimal`, and the same code is `ExampleOdds_KellyStake` in
+    `example_test.go`, which `go test` compiles and checks (480.00), so it can't drift again. The
+    precision note covers every constructor, and a line on units says what's a fraction.
 13. **`ExpectedValueProb` and `ExpectedValueOdds` say "percent increase"** but return a fraction
     (probe: 0.05 for a 5% edge).
+    **Fixed 2026-10-23** (branch `doc-fixes`): both say they return a fraction of the stake, and
+    `ExampleOdds_ExpectedValueProb` shows +110 at 50% giving 0.0500.
 14. **The devig functions don't give their common names.** `EqualMarginOdds` is the
     multiplicative method and `MPTOdds` the additive one; plays maps the names itself. A line each
     would help.
@@ -58,5 +64,5 @@ today. Most findings are gaps in the library's contract, and a few are traps for
 ## Suggested order
 
 1. **#1 to #5 and #9:** they close the traps without breaking any caller. #1 to #5 and #9 are fixed.
-2. **#6, #12 and #13:** cheap, and #6 keeps the identifiers callers use. #6 is fixed.
+2. **#6, #12 and #13:** cheap, and #6 keeps the identifiers callers use. All three are fixed.
 3. **#7, #8, #10 and #11:** API choices to decide first, since #10 changes what plays receives.
