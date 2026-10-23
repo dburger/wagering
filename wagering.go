@@ -19,8 +19,7 @@ constructed from, so each is the float64 nearest its exact value: always for odd
 from decimal odds, cents or a probability, and for odds made from american odds when
 those are whole numbers.
 
-Results are fractions, 0.05 for 5%, except Meg, which is in basis points, and MarketWidth,
-which is in american points.
+Results are fractions, 0.05 for 5%, except Meg, which is in basis points.
 */
 package wagering
 
@@ -489,18 +488,6 @@ func (odds Odds) ArbRoi(other Odds) float64 {
 	x := odds.decimalOdds
 	y := other.decimalOdds
 	return x*y/(x+y) - 1.0
-}
-
-// MarketWidth returns the market width between the given odds.
-func MarketWidth(odds1, odds2 Odds) float64 {
-	if odds1.americanOdds < 0 && odds2.americanOdds < 0 {
-		return math.Abs(odds1.americanOdds) + math.Abs(odds2.americanOdds) - 200.0
-	} else if odds1.americanOdds > 0 && odds2.americanOdds > 0 {
-		// My own concoction, both positive becomes a negative market width.
-		return -(odds1.americanOdds + odds2.americanOdds - 200.0)
-	} else {
-		return math.Abs(odds1.americanOdds + odds2.americanOdds)
-	}
 }
 
 // Probability represents a probability and stores the decimal and percent

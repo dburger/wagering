@@ -508,20 +508,6 @@ func TestOddsFormatValidAndString(t *testing.T) {
 	assert.EqualError(t, err, "unknown odds format: bogus")
 }
 
-func TestMarketWidth(t *testing.T) {
-	odds1 := american(t, -141.0)
-	odds2 := american(t, +123.0)
-	assert.Equal(t, 18.0, MarketWidth(odds1, odds2))
-
-	odds1 = american(t, -110.0)
-	odds2 = american(t, -114.0)
-	assert.Equal(t, 24.0, MarketWidth(odds1, odds2))
-
-	odds1 = american(t, +150.0)
-	odds2 = american(t, +137.0)
-	assert.Equal(t, -87.0, MarketWidth(odds1, odds2))
-}
-
 func TestProbabilityConstruction(t *testing.T) {
 	prob := probDecimal(t, 0.5)
 	assert.Equal(t, 0.5, prob.Decimal())
