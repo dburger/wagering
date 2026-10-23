@@ -460,7 +460,7 @@ func TestOdds_ToString(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "3.00", odds.ToString(unknown))
 	assert.Equal(t, "3.00", odds.ToString(Unknown))
-	assert.Equal(t, "3.00", odds.ToString(OddsFormat{"bogus"}))
+	assert.Equal(t, "3.00", odds.ToString(OddsFormat("bogus")))
 }
 
 func TestOddsFormat_ToString(t *testing.T) {
@@ -484,7 +484,28 @@ func TestOddsFormatFromString(t *testing.T) {
 
 	format, err = OddsFormatFromString("foo")
 	assert.Equal(t, format, Unknown)
-	assert.NotNil(t, err)
+	assert.EqualError(t, err, "unknown odds format: foo")
+
+	// The empty name is Unknown's slug, but not a format.
+	format, err = OddsFormatFromString("")
+	assert.Equal(t, format, Unknown)
+	assert.Error(t, err)
+}
+
+// TestOddsFormatValidAndString checks which formats are valid, and that a format prints as its
+// slug, in errors too, rather than as a struct.
+func TestOddsFormatValidAndString(t *testing.T) {
+	for _, of := range []OddsFormat{American, Decimal, Cents} {
+		assert.True(t, of.Valid(), "%v", of)
+	}
+	var zero OddsFormat
+	for _, of := range []OddsFormat{Unknown, zero, OddsFormat("bogus"), OddsFormat("American")} {
+		assert.False(t, of.Valid(), "%q", of)
+	}
+	assert.Equal(t, "american", fmt.Sprintf("%v", American))
+	assert.Equal(t, "cents", Cents.String())
+	_, err := NewOdds(1.5, OddsFormat("bogus"))
+	assert.EqualError(t, err, "unknown odds format: bogus")
 }
 
 func TestMarketWidth(t *testing.T) {

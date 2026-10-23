@@ -36,35 +36,48 @@ type Odds struct {
 	cents         float64
 }
 
-type OddsFormat struct {
-	slug string
-}
+// OddsFormat is a way of writing a price, named by its slug. The formats are constants, so they
+// can't be reassigned. A caller can still convert any string to an OddsFormat, which the library
+// tolerates: NewOdds returns an error for it and Odds.ToString falls back to decimal.
+// OddsFormatFromString, the way to turn a name someone typed into a format, accepts only these.
+type OddsFormat string
 
-// TODO(dburger): how to prevent accidental overwrite?
-// Should I make these unexported and only return them from FromString?
-
-var (
-	Unknown  = OddsFormat{""}
-	American = OddsFormat{"american"}
-	Decimal  = OddsFormat{"decimal"}
-	Cents    = OddsFormat{"cents"}
+// The odds formats. Unknown, the zero OddsFormat, is what OddsFormatFromString returns with its
+// error.
+const (
+	Unknown  OddsFormat = ""
+	American OddsFormat = "american"
+	Decimal  OddsFormat = "decimal"
+	Cents    OddsFormat = "cents"
 )
 
+// OddsFormatFromString returns the odds format named s, or Unknown and an error if s names none.
 func OddsFormatFromString(s string) (OddsFormat, error) {
-	switch s {
-	case American.slug:
-		return American, nil
-	case Decimal.slug:
-		return Decimal, nil
-	case Cents.slug:
-		return Cents, nil
-	default:
+	of := OddsFormat(s)
+	if !of.Valid() {
 		return Unknown, fmt.Errorf("unknown odds format: %v", s)
+	}
+	return of, nil
+}
+
+// Valid returns whether of is one of the odds formats above, Unknown excluded.
+func (of OddsFormat) Valid() bool {
+	switch of {
+	case American, Decimal, Cents:
+		return true
+	default:
+		return false
 	}
 }
 
+// String returns the format's slug, such as "american", so that %v prints it.
+func (of OddsFormat) String() string {
+	return string(of)
+}
+
+// ToString returns the format's slug, the same as String.
 func (of OddsFormat) ToString() string {
-	return of.slug
+	return of.String()
 }
 
 // Note that these constructors generally try to create the fields of
