@@ -647,9 +647,10 @@ func TestOddsRatioOdds(t *testing.T) {
 
 	// A price of 1.0 has an implied probability of one at every c, so no c
 	// brings the sum down to one. The constructors reject 1.0, so it's made
-	// directly: the solvers still guard against it, as for a zero Odds.
+	// directly, and the check that every Odds is Valid rejects it, as it does
+	// the zero Odds, before the solver runs.
 	_, err = OddsRatioOdds(Odds{decimalOdds: 1.0, netFractional: 0}, decimal(t, 2.0))
-	assert.EqualError(t, err, "no true odds for decimal odds [1 2]")
+	assert.EqualError(t, err, "invalid odds at 0: decimal 1")
 }
 
 func TestLogarithmicOdds(t *testing.T) {
@@ -675,9 +676,10 @@ func TestLogarithmicOdds(t *testing.T) {
 
 	// A price of 1.0 has an implied probability of one at every c, so no c
 	// brings the sum down to one. The constructors reject 1.0, so it's made
-	// directly: the solvers still guard against it, as for a zero Odds.
+	// directly, and the check that every Odds is Valid rejects it, as it does
+	// the zero Odds, before the solver runs.
 	_, err = LogarithmicOdds(Odds{decimalOdds: 1.0, netFractional: 0}, decimal(t, 2.0))
-	assert.EqualError(t, err, "no true odds for decimal odds [1 2]")
+	assert.EqualError(t, err, "invalid odds at 0: decimal 1")
 }
 
 func TestProbitOdds(t *testing.T) {
@@ -703,9 +705,10 @@ func TestProbitOdds(t *testing.T) {
 
 	// A price of 1.0 has an implied probability of one at every c, so no c
 	// brings the sum down to one. The constructors reject 1.0, so it's made
-	// directly: the solvers still guard against it, as for a zero Odds.
+	// directly, and the check that every Odds is Valid rejects it, as it does
+	// the zero Odds, before the solver runs.
 	_, err = ProbitOdds(Odds{decimalOdds: 1.0, netFractional: 0}, decimal(t, 2.0))
-	assert.EqualError(t, err, "no true odds for decimal odds [1 2]")
+	assert.EqualError(t, err, "invalid odds at 0: decimal 1")
 }
 
 func TestOdds_Meg(t *testing.T) {
@@ -731,4 +734,50 @@ func TestOdds_Meg(t *testing.T) {
 			assert.InDelta(t, tt.want, odds.Meg(trueOdds), 1e-5)
 		})
 	}
+}
+
+// TestInvalidOdds checks that an Odds that isn't Valid, such as the zero Odds, gives no plausible
+// answer anywhere: no bet and no edge from the calculations, no arbitrage, a NaN vig, and an error
+// from the devig functions and from an average it went into.
+func TestInvalidOdds(t *testing.T) {
+	var zero Odds
+	price := decimal(t, 1.5)
+	half := probDecimal(t, 0.5)
+
+	assert.False(t, zero.Valid())
+	assert.False(t, Odds{decimalOdds: 1.0}.Valid())
+	assert.False(t, Odds{decimalOdds: math.Inf(1)}.Valid())
+	assert.True(t, price.Valid())
+
+	// Before, the zero Odds said to stake the whole bankroll.
+	assert.Equal(t, 0.0, zero.KellyFraction(half, 1.0))
+	assert.Equal(t, 0.0, zero.KellyStake(half, 1.0, 1000.0))
+	assert.Equal(t, 0.0, zero.ExpectedValueProb(half))
+	assert.Equal(t, 0.0, zero.ExpectedValueOdds(price))
+	assert.Equal(t, 0.0, price.ExpectedValueOdds(zero))
+	assert.Equal(t, 0.0, zero.Meg(price))
+	assert.Equal(t, 0.0, price.Meg(zero))
+
+	// Before, the zero Odds' probability of 0 made an arbitrage with every price.
+	assert.False(t, zero.ArbTo(price))
+	assert.False(t, price.ArbTo(zero))
+	assert.Equal(t, 0.0, zero.ArbRoi(price))
+	assert.Equal(t, 0.0, price.ArbRoi(zero))
+
+	assert.True(t, math.IsNaN(Vig(zero, price)))
+	assert.False(t, Vig(zero, price) <= 0.08, "a vig cap must not let it through")
+
+	for name, devig := range map[string]func(...Odds) ([]Odds, error){
+		"EqualMarginOdds": EqualMarginOdds, "MPTOdds": MPTOdds, "ShinOdds": ShinOdds,
+		"OddsRatioOdds": OddsRatioOdds, "LogarithmicOdds": LogarithmicOdds, "ProbitOdds": ProbitOdds,
+	} {
+		_, err := devig(price, zero)
+		assert.EqualError(t, err, "invalid odds at 1: decimal 0", name)
+	}
+
+	ao := NewAverageOdds()
+	ao.Accumulate(price)
+	ao.AccumulateWeighted(2.0, zero)
+	_, err := ao.Average()
+	assert.EqualError(t, err, "invalid odds accumulated")
 }

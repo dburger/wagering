@@ -11,7 +11,7 @@ today. Most findings are gaps in the library's contract, and a few are traps for
 
 | # | Problem | Evidence | Suggested fix |
 |---|---|---|---|
-| 1 | **The zero `Odds{}` says to stake the whole bankroll.** `KellyFraction` returns 1 and `Meg` returns NaN. `ImpliedProb` returned +Inf; since #2's fix it returns 0, which makes `ArbTo` report an arbitrage against every valid price (probe: against 1.5). `Odds` has no validity check, so a caller who ignores a constructor's error gets confident nonsense. | probe: `KellyFraction` = 1 | Have `KellyFraction`, `Meg` and the expected value methods return 0 for a price that isn't above 1, and add `Valid()` so callers can check. |
+| 1 | **The zero `Odds{}` says to stake the whole bankroll.** `KellyFraction` returns 1 and `Meg` returns NaN. `ImpliedProb` returned +Inf; since #2's fix it returns 0, which makes `ArbTo` report an arbitrage against every valid price (probe: against 1.5). `Odds` has no validity check, so a caller who ignores a constructor's error gets confident nonsense. | probe: `KellyFraction` = 1 | **Fixed 2026-10-23** (branch `invalid-odds`): `Valid()` reports whether an `Odds` is a price (decimal above 1). For one that isn't, `KellyFraction`, `KellyStake`, both expected value methods, `Meg` and `ArbRoi` return 0, `ArbTo` false and `Vig` NaN; the devig functions return an error, and `Average` does if one was accumulated. |
 | 2 | **`Probability` accepts anything** (1.7, -0.2, NaN) and has **no exported accessors**, so callers outside the package can neither check it nor read it back. | probe: `NewProbabilityFromDecimal(1.7)` holds 170% | **Fixed 2026-10-23** (branch `probability-validation`): `NewProbabilityFromDecimal` and `NewProbabilityFromPercent` return an error outside 0 to 1 (0 to 100 percent), NaN and infinities included, and `Decimal()` and `Percent()` read a `Probability` back. |
 | 3 | **`AccumulateWeighted` accepts negative or NaN weights.** A weight of -1 averages without complaint, and mixing signs gives garbage. plays checks its weights first; the library doesn't. | probe | Reject weights that aren't more than 0, or at least document the requirement. |
 | 4 | **`ToString(Unknown)` panics,** yet `Unknown` is what `OddsFormatFromString` returns with its error. | probe | Return a fallback, such as decimal, instead of panicking. |
@@ -57,6 +57,6 @@ today. Most findings are gaps in the library's contract, and a few are traps for
 
 ## Suggested order
 
-1. **#1 to #5 and #9:** they close the traps without breaking any caller. #2 is fixed.
+1. **#1 to #5 and #9:** they close the traps without breaking any caller. #1 and #2 are fixed.
 2. **#6, #12 and #13:** cheap, and #6 keeps the identifiers callers use.
 3. **#7, #8, #10 and #11:** API choices to decide first, since #10 changes what plays receives.

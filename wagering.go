@@ -25,6 +25,9 @@ import (
 	"math"
 )
 
+// Odds is a price, in every format. Make one with a constructor: the zero Odds isn't a price, and
+// it and any other Odds that isn't Valid make the calculations below return 0 (no bet, no edge),
+// ArbTo false, Vig NaN and the devig functions an error, rather than a plausible wrong answer.
 type Odds struct {
 	decimalOdds   float64
 	americanOdds  float64
@@ -159,6 +162,32 @@ func NewOddsFromCents(cents float64) (Odds, error) {
 	}, nil
 }
 
+// Valid returns whether odds is a price, as every Odds from a constructor is: decimal odds above
+// 1. The zero Odds isn't.
+func (odds Odds) Valid() bool {
+	return odds.decimalOdds > 1.0 && !math.IsInf(odds.decimalOdds, 1)
+}
+
+// allValid returns whether every one of odds is Valid.
+func allValid(odds ...Odds) bool {
+	for _, o := range odds {
+		if !o.Valid() {
+			return false
+		}
+	}
+	return true
+}
+
+// checkValid returns an error naming the first of odds that isn't Valid, for the devig functions.
+func checkValid(odds ...Odds) error {
+	for i, o := range odds {
+		if !o.Valid() {
+			return fmt.Errorf("invalid odds at %d: decimal %v", i, o.decimalOdds)
+		}
+	}
+	return nil
+}
+
 // American returns the american odds.
 func (odds Odds) American() float64 {
 	return odds.americanOdds
@@ -196,6 +225,7 @@ func (odds Odds) ToString(of OddsFormat) string {
 type AverageOdds struct {
 	probSum   float64
 	weightSum float64
+	invalid   bool // whether any Odds accumulated wasn't Valid, which makes Average an error.
 }
 
 // NewAverageOdds constructs a new AverageOdds.
@@ -211,13 +241,20 @@ func (ao *AverageOdds) Accumulate(odds ...Odds) {
 // AccumulateWeighted accumulates Odds into AverageOdds, each counting weight times as much
 // as Odds given to Accumulate.
 func (ao *AverageOdds) AccumulateWeighted(weight float64, odds ...Odds) {
+	if !allValid(odds...) {
+		ao.invalid = true
+	}
 	ao.probSum += weight * probSum(odds...)
 	ao.weightSum += weight * float64(len(odds))
 }
 
 // Average returns the average Odds for the AverageOdds. It is an error if nothing has been
-// accumulated, or if the average implied probability isn't below 1, which no decimal odds give.
+// accumulated, if any Odds accumulated wasn't Valid, or if the average implied probability isn't
+// below 1, which no decimal odds give.
 func (ao *AverageOdds) Average() (Odds, error) {
+	if ao.invalid {
+		return Odds{}, errors.New("invalid odds accumulated")
+	}
 	if ao.weightSum == 0 {
 		return Odds{}, errors.New("no odds to average")
 	}
@@ -271,8 +308,12 @@ func margin(odds ...Odds) float64 {
 // Vig returns the vigorish of a market priced at odds, one Odds per outcome: the book's expected
 // share of all that is staked when the stakes pay the same on every outcome, as a fraction. It is
 // the margin, the amount the implied probabilities sum to above 1, divided by that sum, the
-// overround: -110/-110 has a margin of 4.76% and a vig of 4.55%.
+// overround: -110/-110 has a margin of 4.76% and a vig of 4.55%. It is NaN if any of odds isn't
+// Valid, so a comparison with it is false.
 func Vig(odds ...Odds) float64 {
+	if !allValid(odds...) {
+		return math.NaN()
+	}
 	ov := overround(odds...)
 	return (ov - 1.0) / ov
 }
@@ -281,6 +322,9 @@ func Vig(odds ...Odds) float64 {
 // for success and kelly multiplier.
 // https://en.wikipedia.org/wiki/Kelly_criterion
 func (odds Odds) KellyFraction(prob Probability, mult float64) float64 {
+	if !odds.Valid() {
+		return 0.0
+	}
 	profitMult := odds.decimalOdds - 1.0
 	kelly := (profitMult*prob.decimal - (1.00 - prob.decimal)) / profitMult
 	percent := mult * kelly
@@ -320,24 +364,33 @@ func (odds Odds) ImpliedProb() Probability {
 
 // ExpectedValueProb returns the long term expected value when wagering odds
 // at the given probability. The result is given as the percent increase or
-// decrease (negative) of the wager.
+// decrease (negative) of the wager. It is 0 for odds that aren't Valid.
 func (odds Odds) ExpectedValueProb(prob Probability) float64 {
+	if !odds.Valid() {
+		return 0.0
+	}
 	return prob.decimal*(odds.decimalOdds-1.0) - (1.0 - prob.decimal)
 }
 
 // ExpectedValueOdds returns the long term expected value when wagering odds
 // at the given true odds.  The result is given as the percent increase or
-// decrease (negative) of the wager.
+// decrease (negative) of the wager. It is 0 if either isn't Valid.
 func (odds Odds) ExpectedValueOdds(trueOdds Odds) float64 {
+	if !trueOdds.Valid() {
+		return 0.0
+	}
 	return odds.ExpectedValueProb(trueOdds.ImpliedProb())
 }
 
 // Meg returns the maximum expected growth, in basis points: the compounded growth
 // of the bankroll per bet from betting the full Kelly fraction at odds when
 // trueOdds are the real odds, (1 + f*b)^p * (1 - f)^q - 1. It is 0 without an
-// edge, since Kelly then bets nothing.
+// edge, since Kelly then bets nothing, and if either isn't Valid.
 // https://en.wikipedia.org/wiki/Kelly_criterion
 func (odds Odds) Meg(trueOdds Odds) float64 {
+	if !odds.Valid() || !trueOdds.Valid() {
+		return 0.0
+	}
 	prob := trueOdds.ImpliedProb()
 	fraction := odds.KellyFraction(prob, 1.0)
 	p := prob.decimal
@@ -348,8 +401,11 @@ func (odds Odds) Meg(trueOdds Odds) float64 {
 	return 10000.0 * math.Expm1(logGrowth)
 }
 
-// ArbTo returns whether the given odds is an arbitrage to other odds.
+// ArbTo returns whether the given odds is an arbitrage to other odds, never if either isn't Valid.
 func (odds Odds) ArbTo(other Odds) bool {
+	if !odds.Valid() || !other.Valid() {
+		return false
+	}
 	return odds.ImpliedProb().decimal+other.ImpliedProb().decimal < 1.0
 	/*
 		if odds.americanOdds > 0 {
@@ -362,7 +418,13 @@ func (odds Odds) ArbTo(other Odds) bool {
 	*/
 }
 
+// ArbRoi returns the return on the total staked from betting odds and other with stakes that pay
+// the same either way, as a fraction: negative if they aren't an arbitrage, and 0 if either isn't
+// Valid.
 func (odds Odds) ArbRoi(other Odds) float64 {
+	if !odds.Valid() || !other.Valid() {
+		return 0.0
+	}
 	x := odds.decimalOdds
 	y := other.decimalOdds
 	return x*y/(x+y) - 1.0
@@ -435,6 +497,9 @@ func EqualMarginOdds(odds ...Odds) ([]Odds, error) {
 	if len(odds) < 2 {
 		return nil, fmt.Errorf("need at least two odds")
 	}
+	if err := checkValid(odds...); err != nil {
+		return nil, err
+	}
 	ov := overround(odds...)
 	var norms []Odds
 	for _, o := range odds {
@@ -457,6 +522,9 @@ func EqualMarginOdds(odds ...Odds) ([]Odds, error) {
 func MPTOdds(odds ...Odds) ([]Odds, error) {
 	if len(odds) < 2 {
 		return nil, fmt.Errorf("need at least two odds")
+	}
+	if err := checkValid(odds...); err != nil {
+		return nil, err
 	}
 	n := float64(len(odds))
 	m := margin(odds...)
@@ -563,6 +631,9 @@ func ShinOdds(odds ...Odds) ([]Odds, error) {
 	if len(odds) < 2 {
 		return nil, fmt.Errorf("need at least two odds")
 	}
+	if err := checkValid(odds...); err != nil {
+		return nil, err
+	}
 	ov := overround(odds...)
 
 	return solveForC(odds, func(o Odds, c float64) float64 {
@@ -582,6 +653,9 @@ func OddsRatioOdds(odds ...Odds) ([]Odds, error) {
 	if len(odds) < 2 {
 		return nil, fmt.Errorf("need at least two odds")
 	}
+	if err := checkValid(odds...); err != nil {
+		return nil, err
+	}
 	// c runs over the positive numbers. Solved for in its log, since c ranges over
 	// orders of magnitude and a log spreads them evenly for bisection.
 	return solveForC(odds, func(o Odds, logC float64) float64 {
@@ -596,6 +670,9 @@ func LogarithmicOdds(odds ...Odds) ([]Odds, error) {
 	if len(odds) < 2 {
 		return nil, fmt.Errorf("need at least two odds")
 	}
+	if err := checkValid(odds...); err != nil {
+		return nil, err
+	}
 	// c runs over the positive numbers, solved for in its log as in OddsRatioOdds.
 	return solveForC(odds, func(o Odds, logC float64) float64 {
 		return math.Pow(1.0/o.decimalOdds, math.Exp(logC))
@@ -609,6 +686,9 @@ func LogarithmicOdds(odds ...Odds) ([]Odds, error) {
 func ProbitOdds(odds ...Odds) ([]Odds, error) {
 	if len(odds) < 2 {
 		return nil, fmt.Errorf("need at least two odds")
+	}
+	if err := checkValid(odds...); err != nil {
+		return nil, err
 	}
 	// Phi^-1(p) = sqrt(2) * erfinv(2p - 1) and Phi(x) = erfc(-x / sqrt(2)) / 2.
 	return solveForC(odds, func(o Odds, c float64) float64 {
