@@ -148,28 +148,56 @@ func NewOddsFromCents(cents float64) (Odds, error) {
 	if !(cents > 0.0 && cents < 100.0) {
 		return Odds{}, fmt.Errorf("invalid cents: %v", cents)
 	}
-	// One division, so it rounds once.
-	decimalOdds := 100.0 / cents
-	// American and net fractional odds take a subtraction and a division, or a multiplication and
-	// a division, and in float64 each rounds, which missed the nearest float64 for more than half of
-	// all prices. So they're computed exactly from cents' own value, and rounded once.
-	c := new(big.Rat).SetFloat64(cents)
-	net := new(big.Rat).Sub(big.NewRat(100, 1), c) // what a contract wins, in cents
-	netFractional, _ := new(big.Rat).Quo(net, c).Float64()
-	var americanOdds float64
-	if cents <= 50.0 {
+	// A price in cents is the probability as a percent, exactly.
+	return oddsFromProb(new(big.Rat).Quo(new(big.Rat).SetFloat64(cents), big.NewRat(100, 1))), nil
+}
+
+// NewOddsFromProbability constructs a new Odds from the probability of winning it implies, which
+// must be above 0 and below 1; 0 and 1 are probabilities but not prices, and are an error. Every
+// format is the float64 nearest its exact value for the given probability.
+func NewOddsFromProbability(prob Probability) (Odds, error) {
+	if !(prob.decimal > 0.0 && prob.decimal < 1.0) {
+		return Odds{}, fmt.Errorf("invalid probability for odds: %v", prob.decimal)
+	}
+	return oddsFromProb(new(big.Rat).SetFloat64(prob.decimal)), nil
+}
+
+// oddsFromProbFloat is NewOddsFromProbability for a probability held as a float64, as the averages
+// and devig methods compute them.
+func oddsFromProbFloat(p float64) (Odds, error) {
+	prob, err := NewProbabilityFromDecimal(p)
+	if err != nil {
+		return Odds{}, err
+	}
+	return NewOddsFromProbability(prob)
+}
+
+// oddsFromProb returns the Odds for the implied probability p, above 0 and below 1, with every
+// format the float64 nearest its exact value. Each is computed exactly and rounded once: in
+// float64, american and net fractional odds take two operations that each round, which missed
+// the nearest float64 for more than half of all prices.
+func oddsFromProb(p *big.Rat) Odds {
+	hundred := big.NewRat(100, 1)
+	nearest := func(r *big.Rat) float64 {
+		f, _ := r.Float64()
+		return f
+	}
+	lose := new(big.Rat).Sub(big.NewRat(1, 1), p) // the probability of losing
+	net := new(big.Rat).Quo(lose, p)              // what 1 staked wins
+	var american *big.Rat
+	if p.Cmp(big.NewRat(1, 2)) <= 0 {
 		// The underdog side, decimal odds of 2 or more: the win on 100 staked.
-		americanOdds, _ = new(big.Rat).Quo(new(big.Rat).Mul(net, big.NewRat(100, 1)), c).Float64()
+		american = new(big.Rat).Mul(net, hundred)
 	} else {
 		// The favorite: the stake to win 100, negative.
-		americanOdds, _ = new(big.Rat).Quo(new(big.Rat).Mul(c, big.NewRat(-100, 1)), net).Float64()
+		american = new(big.Rat).Quo(new(big.Rat).Neg(hundred), net)
 	}
 	return Odds{
-		decimalOdds:   decimalOdds,
-		americanOdds:  americanOdds,
-		netFractional: netFractional,
-		cents:         cents,
-	}, nil
+		decimalOdds:   nearest(new(big.Rat).Inv(p)),
+		americanOdds:  nearest(american),
+		netFractional: nearest(net),
+		cents:         nearest(new(big.Rat).Mul(p, hundred)),
+	}
 }
 
 // Valid returns whether odds is a price, as every Odds from a constructor is: decimal odds above
@@ -275,9 +303,7 @@ func (ao *AverageOdds) Average() (Odds, error) {
 	if ao.weightSum == 0 {
 		return Odds{}, errors.New("no odds to average")
 	}
-	avgProb := ao.probSum / ao.weightSum
-	// TODO(dburger): should we introduce NewOddsFromProb or NewOddsFromImpliedProb?
-	return NewOddsFromDecimal(1.0 / avgProb)
+	return oddsFromProbFloat(ao.probSum / ao.weightSum)
 }
 
 func probs(odds ...Odds) []Probability {
@@ -301,7 +327,7 @@ func probSum(odds ...Odds) float64 {
 func transOdds(prob func(Odds) float64, odds ...Odds) ([]Odds, error) {
 	var trans []Odds
 	for _, o := range odds {
-		todds, err := NewOddsFromDecimal(1.0 / prob(o))
+		todds, err := oddsFromProbFloat(prob(o))
 		if err != nil {
 			return nil, fmt.Errorf("devigged odds: %w", err)
 		}
@@ -551,7 +577,7 @@ func MPTOdds(odds ...Odds) ([]Odds, error) {
 		if prob <= 0.0 {
 			return nil, fmt.Errorf("margin %v exceeds the implied probability of decimal odds %v", m, o.decimalOdds)
 		}
-		nodds, err := NewOddsFromDecimal(1 / prob)
+		nodds, err := oddsFromProbFloat(prob)
 		if err != nil {
 			return nil, fmt.Errorf("MPT odds: %w", err)
 		}

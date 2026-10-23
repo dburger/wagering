@@ -24,7 +24,7 @@ today. Most findings are gaps in the library's contract, and a few are traps for
 | 6 | **The `OddsFormat` values are exported variables,** so a caller can reassign `wagering.American` (the TODO above them). They also print as `{bogus}` in errors (probe: `NewOdds`' "unknown odds format: {bogus}"), since `OddsFormat` has no `String()`. | `type OddsFormat string` with constants, `const American OddsFormat = "american"`: the same names for callers, immutable, and they print as their slug. odds, plays and bet would compile unchanged, as none calls `OddsFormat.ToString()`. |
 | 7 | **Fractional odds are half there.** `netFractional` is stored in every `Odds`, but there's no Fractional format, constructor or accessor, and only `Meg` reads it. oddspunk supports fractional odds. | Finish it (format, constructor, `ToString`), or drop the field. |
 | 8 | **Arbs are two-way only.** `ArbTo` and `ArbRoi` take exactly two prices, and `ArbTo` carries a commented-out old implementation. `ArbRoi` equals 1/overround - 1 (probe: both 0.037349), which works for any number of outcomes. | Variadic `ArbRoi(odds ...Odds)`, and an `ArbTo` on the overround; delete the dead code. |
-| 9 | **No `NewOddsFromProbability`.** `Average` (with a TODO asking for it), `transOdds` and `MPTOdds` build odds from a probability by hand with `NewOddsFromDecimal(1/p)`, and plays does the same. | Add it, with the validation of #2. |
+| 9 | **No `NewOddsFromProbability`.** `Average` (with a TODO asking for it), `transOdds` and `MPTOdds` build odds from a probability by hand with `NewOddsFromDecimal(1/p)`, and plays does the same. | **Fixed 2026-10-23** (branch `odds-from-probability`): `NewOddsFromProbability` takes a `Probability` and rejects 0 and 1, which aren't prices. Like cents (#5), which now shares its code (`oddsFromProb`), every format is computed exactly and rounded once. `Average`, `transOdds` and `MPTOdds` use it, which removes `Average`'s TODO. plays' output on a real props snapshot is identical, 60,305 lines, at about 12% more time (0.89s to 1.01s a run). |
 | 10 | **Units are inconsistent.** `Meg` returns basis points, while `ExpectedValueProb`, `ExpectedValueOdds`, `Vig` and Kelly return fractions; plays divides `Meg` by 10000. | Fractions throughout, with callers converting for display. A breaking change for plays. |
 | 11 | **`MarketWidth` has no caller** in odds, plays or bet. It uses the american "cents" convention, plus one of its own when both sides are plus odds ("My own concoction"). | Keep it, documented, or remove it. |
 
@@ -57,6 +57,6 @@ today. Most findings are gaps in the library's contract, and a few are traps for
 
 ## Suggested order
 
-1. **#1 to #5 and #9:** they close the traps without breaking any caller. #1 to #5 are fixed.
+1. **#1 to #5 and #9:** they close the traps without breaking any caller. #1 to #5 and #9 are fixed.
 2. **#6, #12 and #13:** cheap, and #6 keeps the identifiers callers use.
 3. **#7, #8, #10 and #11:** API choices to decide first, since #10 changes what plays receives.

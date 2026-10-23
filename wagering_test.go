@@ -193,6 +193,60 @@ func TestNewOddsFromCentsExact(t *testing.T) {
 	}
 }
 
+// TestNewOddsFromProbability checks that a probability gives the float64 nearest its exact odds in
+// every format, prices drawn at random and the even money in between, and that it agrees with
+// cents, which are the same probability as a percent.
+func TestNewOddsFromProbability(t *testing.T) {
+	nearest := func(r *big.Rat) float64 {
+		f, _ := r.Float64()
+		return f
+	}
+	probs := []float64{0.5, 0.25, 0.75, 0.01, 0.99}
+	rng := rand.New(rand.NewSource(2))
+	for len(probs) < 20000 {
+		if p := rng.Float64(); p > 0 {
+			probs = append(probs, p)
+		}
+	}
+	for _, p := range probs {
+		odds, err := NewOddsFromProbability(probDecimal(t, p))
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := new(big.Rat).SetFloat64(p)
+		lose := new(big.Rat).Sub(big.NewRat(1, 1), r)
+		net := new(big.Rat).Quo(lose, r)
+		am := new(big.Rat).Mul(net, big.NewRat(100, 1))
+		if p > 0.5 {
+			am = new(big.Rat).Quo(big.NewRat(-100, 1), net)
+		}
+		if odds.decimalOdds != nearest(new(big.Rat).Inv(r)) || odds.americanOdds != nearest(am) ||
+			odds.netFractional != nearest(net) || odds.cents != nearest(new(big.Rat).Mul(r, big.NewRat(100, 1))) {
+			t.Errorf("probability %v: got %+v", p, odds)
+		}
+	}
+	// Even money is +100, and a probability agrees with the same price in cents.
+	even, _ := NewOddsFromProbability(probDecimal(t, 0.5))
+	assert.Equal(t, 100.0, even.American())
+	for _, cents := range []float64{1, 21.75, 40, 50, 60, 72, 99.5} {
+		fromCents, _ := NewOddsFromCents(cents)
+		fromProb, _ := NewOddsFromProbability(probPercent(t, cents))
+		assert.InDelta(t, fromCents.Decimal(), fromProb.Decimal(), 1e-12, "cents %v", cents)
+		assert.InDelta(t, fromCents.American(), fromProb.American(), 1e-9, "cents %v", cents)
+	}
+}
+
+// TestNewOddsFromProbabilityInvalid checks that 0 and 1, which are probabilities but not prices,
+// are errors.
+func TestNewOddsFromProbabilityInvalid(t *testing.T) {
+	for _, p := range []float64{0, 1} {
+		_, err := NewOddsFromProbability(probDecimal(t, p))
+		assert.EqualError(t, err, fmt.Sprintf("invalid probability for odds: %v", p))
+	}
+	_, err := NewOddsFromProbability(Probability{})
+	assert.Error(t, err, "the zero Probability, 0")
+}
+
 func TestNewOddsFromCentsInvalid(t *testing.T) {
 	for _, c := range []float64{100, 150, 0, -20, math.Inf(1), math.Inf(-1), math.NaN()} {
 		_, err := NewOddsFromCents(c)
