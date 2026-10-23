@@ -203,6 +203,9 @@ func (odds Odds) Cents() float64 {
 	return odds.cents
 }
 
+// ToString returns odds in the given format: american as +200.00 or -200.00, decimal as 3.00,
+// and cents as 33.33¢. Any other format, Unknown included, which OddsFormatFromString returns
+// with its error, gives decimal: a price shown in the wrong format is still the right price.
 func (odds Odds) ToString(of OddsFormat) string {
 	if of == American {
 		if odds.americanOdds >= 0 {
@@ -210,12 +213,10 @@ func (odds Odds) ToString(of OddsFormat) string {
 		} else {
 			return fmt.Sprintf("%.2f", odds.americanOdds)
 		}
-	} else if of == Decimal {
-		return fmt.Sprintf("%.2f", odds.decimalOdds)
 	} else if of == Cents {
 		return fmt.Sprintf("%.2f¢", odds.cents)
 	} else {
-		panic("unknown odds format")
+		return fmt.Sprintf("%.2f", odds.decimalOdds)
 	}
 }
 

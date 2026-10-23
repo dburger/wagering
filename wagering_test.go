@@ -355,6 +355,15 @@ func TestOdds_ToString(t *testing.T) {
 	odds, err := NewOddsFromCents(21.75)
 	assert.Nil(t, err)
 	assert.Equal(t, "21.75¢", odds.ToString(Cents))
+
+	// Any other format gives decimal rather than a panic: Unknown, which OddsFormatFromString
+	// returns with its error, and one it never returns.
+	odds = american(t, +200.0)
+	unknown, err := OddsFormatFromString("fractional")
+	assert.Error(t, err)
+	assert.Equal(t, "3.00", odds.ToString(unknown))
+	assert.Equal(t, "3.00", odds.ToString(Unknown))
+	assert.Equal(t, "3.00", odds.ToString(OddsFormat{"bogus"}))
 }
 
 func TestOddsFormat_ToString(t *testing.T) {
