@@ -16,8 +16,8 @@ Typical usage, a stake at 0.3 Kelly on a 60% chance at -110 (ExampleOdds_KellySt
 
 An Odds holds its price in every format, each computed directly from the value it was
 constructed from, so each is the float64 nearest its exact value: always for odds made
-from decimal odds, cents or a probability, and for odds made from american odds when
-those are whole numbers.
+from decimal odds, cents, fractional odds or a probability, and for odds made from
+american odds when those are whole numbers.
 
 Results are fractions, 0.05 for 5%, except Meg, which is in basis points.
 */
@@ -49,10 +49,11 @@ type OddsFormat string
 // The odds formats. Unknown, the zero OddsFormat, is what OddsFormatFromString returns with its
 // error.
 const (
-	Unknown  OddsFormat = ""
-	American OddsFormat = "american"
-	Decimal  OddsFormat = "decimal"
-	Cents    OddsFormat = "cents"
+	Unknown    OddsFormat = ""
+	American   OddsFormat = "american"
+	Decimal    OddsFormat = "decimal"
+	Cents      OddsFormat = "cents"
+	Fractional OddsFormat = "fractional"
 )
 
 // OddsFormatFromString returns the odds format named s, or Unknown and an error if s names none.
@@ -67,7 +68,7 @@ func OddsFormatFromString(s string) (OddsFormat, error) {
 // Valid returns whether of is one of the odds formats above, Unknown excluded.
 func (of OddsFormat) Valid() bool {
 	switch of {
-	case American, Decimal, Cents:
+	case American, Decimal, Cents, Fractional:
 		return true
 	default:
 		return false
@@ -89,15 +90,19 @@ func (of OddsFormat) ToString() string {
 // one, say decimal, and then deriving the others from it. Presumably,
 // this results in fewer rounding errors and more accurate odds.
 
-// NewOdds constructs a new Odds from the given price and odds format.
+// NewOdds constructs a new Odds from the given price and odds format. A Fractional price is the
+// net fractional odds as one number, 2.5 for 5/2, as NewOddsFromNetFractional takes them.
 func NewOdds(price float64, oddsFormat OddsFormat) (Odds, error) {
-	if oddsFormat == American {
+	switch oddsFormat {
+	case American:
 		return NewOddsFromAmerican(price)
-	} else if oddsFormat == Decimal {
+	case Decimal:
 		return NewOddsFromDecimal(price)
-	} else if oddsFormat == Cents {
+	case Cents:
 		return NewOddsFromCents(price)
-	} else {
+	case Fractional:
+		return NewOddsFromNetFractional(price)
+	default:
 		return Odds{}, fmt.Errorf("unknown odds format: %v", oddsFormat)
 	}
 }
@@ -167,6 +172,32 @@ func NewOddsFromCents(cents float64) (Odds, error) {
 	}
 	// A price in cents is the probability as a percent, exactly.
 	return oddsFromProb(new(big.Rat).Quo(new(big.Rat).SetFloat64(cents), big.NewRat(100, 1))), nil
+}
+
+// NewOddsFromFractional constructs a new Odds from fractional odds, numerator/denominator, what a
+// stake of the denominator wins: 5/2 wins 5 for 2 staked, 10/11 is -110 and 1/1 is even money.
+// Both must be greater than 0; anything else is an error. Every format is the float64 nearest its
+// exact value for the given fraction.
+func NewOddsFromFractional(numerator, denominator int64) (Odds, error) {
+	if numerator <= 0 || denominator <= 0 {
+		return Odds{}, fmt.Errorf("invalid fractional odds: %d/%d", numerator, denominator)
+	}
+	// The implied probability is the stake over the stake and the win, exactly.
+	return oddsFromProb(big.NewRat(denominator, numerator+denominator)), nil
+}
+
+// NewOddsFromNetFractional constructs a new Odds from net fractional odds as one number, what 1
+// staked wins: 2.5 for 5/2. It must be finite and greater than 0; anything else is an error.
+// Every format is the float64 nearest its exact value for the given number, which Fractional
+// returns unchanged.
+func NewOddsFromNetFractional(net float64) (Odds, error) {
+	// Written as the valid range negated, so NaN, which fails every comparison, is rejected too.
+	if !(net > 0.0) || math.IsInf(net, 0) {
+		return Odds{}, fmt.Errorf("invalid net fractional odds: %v", net)
+	}
+	// The implied probability is 1 / (1 + net), exactly.
+	one := big.NewRat(1, 1)
+	return oddsFromProb(new(big.Rat).Inv(new(big.Rat).Add(one, new(big.Rat).SetFloat64(net)))), nil
 }
 
 // NewOddsFromProbability constructs a new Odds from the probability of winning it implies, which
@@ -270,19 +301,75 @@ func (odds Odds) Cents() float64 {
 	return odds.cents
 }
 
+// Fractional returns the net fractional odds, what 1 staked wins: 2.5 for 5/2, decimal odds
+// less 1. ToString(Fractional) writes them as a fraction.
+func (odds Odds) Fractional() float64 {
+	return odds.netFractional
+}
+
+// maxFractionDenominator is the largest denominator ToString writes fractional odds with. Books'
+// fractions are small (10/11, 5/6, 11/8, 100/30), and every american or decimal price to the
+// cent fits under it exactly: -110 is 10/11 and 1.91 is 91/100.
+const maxFractionDenominator = 100
+
+// fraction returns the fraction nearest net with a denominator of at most max, by continued
+// fractions: exactly net if it's one, else the closest of the best approximations either side.
+func fraction(net float64, max int64) (num, den *big.Int) {
+	x := new(big.Rat).SetFloat64(net)
+	if x.Denom().Cmp(big.NewInt(max)) <= 0 {
+		return x.Num(), x.Denom()
+	}
+	// Convergents p/q of x's continued fraction, stopping before a denominator over max.
+	p0, q0, p1, q1 := big.NewInt(0), big.NewInt(1), big.NewInt(1), big.NewInt(0)
+	n, d := new(big.Int).Set(x.Num()), new(big.Int).Set(x.Denom())
+	limit := big.NewInt(max)
+	for d.Sign() != 0 {
+		a, r := new(big.Int).QuoRem(n, d, new(big.Int))
+		q2 := new(big.Int).Add(q0, new(big.Int).Mul(a, q1))
+		if q2.Cmp(limit) > 0 {
+			break
+		}
+		p0, q0, p1, q1 = p1, q1, new(big.Int).Add(p0, new(big.Int).Mul(a, p1)), q2
+		n, d = d, r
+	}
+	// The last convergent p1/q1, and the semiconvergent with the largest denominator still under
+	// max, lie either side of x; the nearer wins, the convergent on a tie.
+	k := new(big.Int).Quo(new(big.Int).Sub(limit, q0), q1)
+	semi := new(big.Rat).SetFrac(new(big.Int).Add(p0, new(big.Int).Mul(k, p1)), new(big.Int).Add(q0, new(big.Int).Mul(k, q1)))
+	conv := new(big.Rat).SetFrac(p1, q1)
+	distance := func(r *big.Rat) *big.Rat { return new(big.Rat).Abs(new(big.Rat).Sub(r, x)) }
+	if distance(semi).Cmp(distance(conv)) < 0 {
+		return semi.Num(), semi.Denom()
+	}
+	return conv.Num(), conv.Denom()
+}
+
 // ToString returns odds in the given format: american as +200.00 or -200.00, decimal as 3.00,
-// and cents as 33.33¢. Any other format, Unknown included, which OddsFormatFromString returns
-// with its error, gives decimal: a price shown in the wrong format is still the right price.
+// cents as 33.33¢, and fractional as 2/1, in lowest terms with a denominator of at most 100, the
+// nearest such fraction when the odds aren't one, as the others are rounded to the cent. Any
+// other format, Unknown included, which OddsFormatFromString returns with its error, gives
+// decimal: a price shown in the wrong format is still the right price.
 func (odds Odds) ToString(of OddsFormat) string {
-	if of == American {
+	switch of {
+	case American:
 		if odds.americanOdds >= 0 {
 			return fmt.Sprintf("+%.2f", odds.americanOdds)
-		} else {
-			return fmt.Sprintf("%.2f", odds.americanOdds)
 		}
-	} else if of == Cents {
+		return fmt.Sprintf("%.2f", odds.americanOdds)
+	case Cents:
 		return fmt.Sprintf("%.2f¢", odds.cents)
-	} else {
+	case Fractional:
+		if !odds.Valid() {
+			return fmt.Sprintf("%.2f", odds.decimalOdds)
+		}
+		num, den := fraction(odds.netFractional, maxFractionDenominator)
+		if num.Sign() == 0 {
+			// Odds shorter than 1/100 are nearest 0/1, which isn't a price: the shortest
+			// fraction writable is.
+			return fmt.Sprintf("1/%d", maxFractionDenominator)
+		}
+		return num.String() + "/" + den.String()
+	default:
 		return fmt.Sprintf("%.2f", odds.decimalOdds)
 	}
 }

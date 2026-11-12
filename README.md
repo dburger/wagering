@@ -25,17 +25,23 @@ An `Odds` holds a price in every format at once:
 | american | `NewOddsFromAmerican` | -110, +150 |
 | decimal | `NewOddsFromDecimal` | 1.91, 2.50 |
 | cents, a prediction market's price of a contract paying 100 | `NewOddsFromCents` | 52.38, 40 |
+| fractional, what a stake of the denominator wins | `NewOddsFromFractional`, or `NewOddsFromNetFractional` for one number | 10/11, 5/2; 2.5 |
 | probability, the chance of winning it implies | `NewOddsFromProbability` | a `Probability` of 0.4 |
 
-`NewOdds(price, format)` takes the format as an `OddsFormat` (`American`, `Decimal`, `Cents`), and
-`OddsFormatFromString` turns a name such as `"cents"` into one. `ToString(format)` writes a price
-as `-110.00`, `1.91` or `52.38¢`.
+`NewOdds(price, format)` takes the format as an `OddsFormat` (`American`, `Decimal`, `Cents`,
+`Fractional`, whose price is the net odds as one number, 2.5 for 5/2), and `OddsFormatFromString`
+turns a name such as `"cents"` into one. `American()`, `Decimal()`, `Cents()` and `Fractional()`
+(the net odds, 2.5) read a price back, and `ToString(format)` writes it as `-110.00`, `1.91`,
+`52.38¢` or `10/11`. A fraction is written in lowest terms with a denominator of at most 100, the
+nearest one when the price isn't such a fraction, as the other formats round to the cent; every
+american or decimal price to the cent is one exactly.
 
 - **Exact.** Each constructor computes every format directly from the value it's given, so each
-  is the float64 nearest its exact value: always for decimal odds, cents and probabilities, and
-  for american odds when they're whole numbers. The tests check this against exact rationals.
+  is the float64 nearest its exact value: always for decimal odds, cents, fractional odds and
+  probabilities, and for american odds when they're whole numbers. The tests check this against exact rationals.
 - **Validated.** A constructor rejects what isn't a price (american between -100 and +100,
-  decimal 1 or less, cents outside 0 to 100, a probability of 0 or 1, NaN and infinities) with an
+  decimal 1 or less, cents outside 0 to 100, a fraction that isn't positive, a probability of 0
+  or 1, NaN and infinities) with an
   error. The zero `Odds` isn't a price either: `Valid()` says so, and the calculations return 0
   for it, `ArbTo` false and `Vig` NaN, rather than a plausible wrong answer.
 - **Probabilities** are a `Probability`, from `NewProbabilityFromDecimal` (0 to 1) or

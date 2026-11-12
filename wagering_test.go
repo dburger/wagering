@@ -456,11 +456,106 @@ func TestOdds_ToString(t *testing.T) {
 	// Any other format gives decimal rather than a panic: Unknown, which OddsFormatFromString
 	// returns with its error, and one it never returns.
 	odds = fromAmerican(t, +200.0)
-	unknown, err := OddsFormatFromString("fractional")
+	unknown, err := OddsFormatFromString("moneyline")
 	assert.Error(t, err)
 	assert.Equal(t, "3.00", odds.ToString(unknown))
 	assert.Equal(t, "3.00", odds.ToString(Unknown))
 	assert.Equal(t, "3.00", odds.ToString(OddsFormat("bogus")))
+}
+
+// TestFractional checks fractional odds both ways: the constructors, NewOdds' Fractional price,
+// the Fractional accessor and ToString's fractions.
+func TestFractional(t *testing.T) {
+	odds, err := NewOddsFromFractional(5, 2)
+	assert.Nil(t, err)
+	assert.Equal(t, 3.5, odds.Decimal())
+	assert.Equal(t, 250.0, odds.American())
+	assert.Equal(t, 2.5, odds.Fractional())
+	assert.Equal(t, "5/2", odds.ToString(Fractional))
+
+	// 10/11 is -110 exactly, and 1/1 even money.
+	odds, err = NewOddsFromFractional(10, 11)
+	assert.Nil(t, err)
+	assert.Equal(t, -110.0, odds.American())
+	assert.Equal(t, "10/11", odds.ToString(Fractional))
+	odds, err = NewOddsFromFractional(1, 1)
+	assert.Nil(t, err)
+	assert.Equal(t, 2.0, odds.Decimal())
+	assert.Equal(t, "1/1", odds.ToString(Fractional))
+	// Written in lowest terms.
+	odds, err = NewOddsFromFractional(100, 30)
+	assert.Nil(t, err)
+	assert.Equal(t, "10/3", odds.ToString(Fractional))
+
+	for _, f := range [][2]int64{{0, 1}, {1, 0}, {-5, 2}, {5, -2}} {
+		_, err := NewOddsFromFractional(f[0], f[1])
+		assert.EqualError(t, err, fmt.Sprintf("invalid fractional odds: %d/%d", f[0], f[1]))
+	}
+
+	// NewOdds takes the net fractional odds as one number, kept as given.
+	odds, err = NewOdds(2.5, Fractional)
+	assert.Nil(t, err)
+	assert.Equal(t, 3.5, odds.Decimal())
+	assert.Equal(t, 2.5, odds.Fractional())
+	for _, n := range []float64{0, -1, math.Inf(1), math.NaN()} {
+		_, err := NewOdds(n, Fractional)
+		assert.Errorf(t, err, "net %v", n)
+	}
+
+	// Every other format writes as its fraction: american and decimal prices to the cent fit
+	// under the denominator limit exactly.
+	for _, tt := range []struct {
+		odds Odds
+		want string
+	}{
+		{fromAmerican(t, -110), "10/11"},
+		{fromAmerican(t, +100), "1/1"},
+		{fromAmerican(t, -120), "5/6"},
+		{fromAmerican(t, +137), "137/100"},
+		{oddsFromDecimals(t, 1.91)[0], "91/100"},
+		{oddsFromDecimals(t, 11.0)[0], "10/1"},
+	} {
+		assert.Equal(t, tt.want, tt.odds.ToString(Fractional), "american %v", tt.odds.American())
+	}
+
+	// Others write as the nearest fraction with a denominator of 100 or less, as the other
+	// formats round to the cent: 1.952 is 119/125, nearest 79/83 (0.95181), nearer than 20/21
+	// (0.95238).
+	assert.Equal(t, "79/83", oddsFromDecimals(t, 1.952)[0].ToString(Fractional))
+	// Never 0/1: odds shorter than 1/100 write as 1/100.
+	assert.Equal(t, "1/100", oddsFromDecimals(t, 1.004)[0].ToString(Fractional))
+	// An Odds that isn't Valid writes as decimal, as ToString does for an unknown format.
+	assert.Equal(t, "0.00", Odds{}.ToString(Fractional))
+}
+
+// TestFractionalExact checks that fractional odds give the float64 nearest every format's exact
+// value, as cents and probabilities do.
+func TestFractionalExact(t *testing.T) {
+	nearest := func(r *big.Rat) float64 {
+		f, _ := r.Float64()
+		return f
+	}
+	for num := int64(1); num <= 200; num++ {
+		for den := int64(1); den <= 200; den++ {
+			odds, err := NewOddsFromFractional(num, den)
+			assert.Nil(t, err)
+			net := big.NewRat(num, den)
+			dec := new(big.Rat).Add(net, big.NewRat(1, 1))
+			if odds.netFractional != nearest(net) || odds.decimalOdds != nearest(dec) {
+				t.Fatalf("%d/%d: net %v, decimal %v", num, den, odds.netFractional, odds.decimalOdds)
+			}
+		}
+	}
+	// Written back, a fraction in lowest terms with a denominator up to 100 is itself.
+	for num := int64(1); num <= 300; num++ {
+		for den := int64(1); den <= 100; den++ {
+			r := big.NewRat(num, den)
+			odds, _ := NewOddsFromFractional(num, den)
+			if got, want := odds.ToString(Fractional), r.Num().String()+"/"+r.Denom().String(); got != want {
+				t.Fatalf("%d/%d writes as %s, want %s", num, den, got, want)
+			}
+		}
+	}
 }
 
 func TestOddsFormat_ToString(t *testing.T) {
@@ -482,6 +577,10 @@ func TestOddsFormatFromString(t *testing.T) {
 	assert.Equal(t, format, Cents)
 	assert.Nil(t, err)
 
+	format, err = OddsFormatFromString("fractional")
+	assert.Equal(t, format, Fractional)
+	assert.Nil(t, err)
+
 	format, err = OddsFormatFromString("foo")
 	assert.Equal(t, format, Unknown)
 	assert.EqualError(t, err, "unknown odds format: foo")
@@ -495,7 +594,7 @@ func TestOddsFormatFromString(t *testing.T) {
 // TestOddsFormatValidAndString checks which formats are valid, and that a format prints as its
 // slug, in errors too, rather than as a struct.
 func TestOddsFormatValidAndString(t *testing.T) {
-	for _, of := range []OddsFormat{American, Decimal, Cents} {
+	for _, of := range []OddsFormat{American, Decimal, Cents, Fractional} {
 		assert.True(t, of.Valid(), "%v", of)
 	}
 	var zero OddsFormat
