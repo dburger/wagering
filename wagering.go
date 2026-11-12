@@ -562,33 +562,31 @@ func (odds Odds) Meg(trueOdds Odds) float64 {
 	return 10000.0 * math.Expm1(logGrowth)
 }
 
-// ArbTo returns whether the given odds is an arbitrage to other odds, never if either isn't Valid.
-func (odds Odds) ArbTo(other Odds) bool {
-	if !odds.Valid() || !other.Valid() {
-		return false
-	}
-	return odds.ImpliedProb().decimal+other.ImpliedProb().decimal < 1.0
-	/*
-		if odds.americanOdds > 0 {
-			return -odds.americanOdds < other.americanOdds
-		} else if other.americanOdds > 0 {
-			return -other.americanOdds < odds.americanOdds
-		} else {
-			return false
-		}
-	*/
+// ArbTo returns whether odds and others, a price on each outcome of a market, two-way or more,
+// are an arbitrage: whether their implied probabilities, their overround, sum to less than 1.
+// It is false with no others, and if any isn't Valid.
+func (odds Odds) ArbTo(others ...Odds) bool {
+	market, ok := arbMarket(odds, others)
+	return ok && overround(market...) < 1.0
 }
 
-// ArbRoi returns the return on the total staked from betting odds and other with stakes that pay
-// the same either way, as a fraction: negative if they aren't an arbitrage, and 0 if either isn't
-// Valid.
-func (odds Odds) ArbRoi(other Odds) float64 {
-	if !odds.Valid() || !other.Valid() {
+// ArbRoi returns the return on the total staked from betting odds and others, a price on each
+// outcome of a market, two-way or more, with stakes that pay the same whichever wins, as a
+// fraction: 1 over their overround, less 1. It is negative if they aren't an arbitrage, and 0
+// with no others or if any isn't Valid.
+func (odds Odds) ArbRoi(others ...Odds) float64 {
+	market, ok := arbMarket(odds, others)
+	if !ok {
 		return 0.0
 	}
-	x := odds.decimalOdds
-	y := other.decimalOdds
-	return x*y/(x+y) - 1.0
+	return 1.0/overround(market...) - 1.0
+}
+
+// arbMarket returns odds and others as one market, and whether it can be an arbitrage: two or
+// more prices, every one Valid.
+func arbMarket(odds Odds, others []Odds) ([]Odds, bool) {
+	market := append([]Odds{odds}, others...)
+	return market, len(others) > 0 && allValid(market...)
 }
 
 // Probability represents a probability and stores the decimal and percent

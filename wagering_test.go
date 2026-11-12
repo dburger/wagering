@@ -438,6 +438,52 @@ func TestOdds_ArbRoi(t *testing.T) {
 	assert.Equal(t, -0.25, odds1.ArbRoi(odds2))
 }
 
+// TestArbsMoreWays checks arbitrages of three outcomes and more, such as a soccer moneyline with
+// its draw, and that a price alone is never one.
+func TestArbsMoreWays(t *testing.T) {
+	// 4.0, 4.0 and 2.5 imply 0.25 + 0.25 + 0.4 = 0.9: an arbitrage returning 1/0.9 - 1.
+	home, draw, away := fromDecimal(t, 4.0), fromDecimal(t, 4.0), fromDecimal(t, 2.5)
+	assert.True(t, home.ArbTo(draw, away))
+	assert.True(t, away.ArbTo(home, draw), "in any order")
+	assert.InDelta(t, 1/0.9-1, home.ArbRoi(draw, away), 1e-15)
+	assert.InDelta(t, home.ArbRoi(draw, away), away.ArbRoi(home, draw), 1e-15)
+
+	// 2.5, 3.2 and 3.0 imply 0.4 + 0.3125 + 0.3333 = 1.0458: not one, and a loss.
+	home, draw, away = fromDecimal(t, 2.5), fromDecimal(t, 3.2), fromDecimal(t, 3.0)
+	assert.False(t, home.ArbTo(draw, away))
+	assert.InDelta(t, 1/(0.4+0.3125+1.0/3)-1, home.ArbRoi(draw, away), 1e-15)
+	assert.Less(t, home.ArbRoi(draw, away), 0.0)
+	// Leaving out a side makes it look like one: callers pass a price on every outcome.
+	assert.True(t, home.ArbTo(draw))
+
+	// Four ways at 5.0 each imply 0.8.
+	five := fromDecimal(t, 5.0)
+	assert.True(t, five.ArbTo(five, five, five))
+	assert.InDelta(t, 0.25, five.ArbRoi(five, five, five), 1e-15)
+
+	// A price alone is no market, so never an arbitrage, though its implied probability is
+	// below 1.
+	assert.False(t, five.ArbTo())
+	assert.Equal(t, 0.0, five.ArbRoi())
+
+	// An invalid price anywhere makes it none.
+	var zero Odds
+	assert.False(t, home.ArbTo(draw, zero))
+	assert.Equal(t, 0.0, home.ArbRoi(zero, away))
+}
+
+// TestArbRoiTwoWays checks that the ROI from the overround is the old two-way formula,
+// x*y/(x+y) - 1, and ArbTo the old sum of implied probabilities, over a grid of prices.
+func TestArbRoiTwoWays(t *testing.T) {
+	for x := 1.01; x < 20; x += 0.37 {
+		for y := 1.01; y < 20; y += 0.41 {
+			a, b := fromDecimal(t, x), fromDecimal(t, y)
+			assert.InDelta(t, x*y/(x+y)-1.0, a.ArbRoi(b), 1e-14, "%v and %v", x, y)
+			assert.Equal(t, 1/x+1/y < 1, a.ArbTo(b), "%v and %v", x, y)
+		}
+	}
+}
+
 func TestOdds_ToString(t *testing.T) {
 	odds := fromAmerican(t, +200.0)
 	assert.Equal(t, "+200.00", odds.ToString(American))

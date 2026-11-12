@@ -56,7 +56,7 @@ american or decimal price to the cent is one exactly.
 | `ExpectedValueProb(p)`, `ExpectedValueOdds(trueOdds)` | the expected gain per unit staked, as a fraction |
 | `KellyFraction(p, mult)`, `KellyStake(p, mult, bankroll)` | the Kelly bet, at a multiplier such as 0.25 |
 | `Meg(trueOdds)` | the maximum expected growth, the bankroll's growth per bet at full Kelly, in **basis points** |
-| `ArbTo(other)`, `ArbRoi(other)` | whether two prices on opposite sides are an arbitrage, and its return |
+| `ArbTo(others...)`, `ArbRoi(others...)` | whether prices on every outcome of a market, two-way or more, are an arbitrage, and its return: 1 over the overround, less 1 |
 | `Vig(odds...)` | a market's vig, its margin over its overround: -110/-110 is 4.55% |
 | `NewAverageOdds()`, `Accumulate`, `AccumulateWeighted`, `Average` | an average of odds by their implied probabilities, optionally weighted |
 
