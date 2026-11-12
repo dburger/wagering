@@ -518,7 +518,7 @@ func (odds Odds) Shorter(other Odds) bool {
 // This computation is equivalent to the break even probability.
 func (odds Odds) ImpliedProb() Probability {
 	// Odds from a constructor are above 1, so the error can't happen. The zero Odds, which isn't
-	// one, gets probability 0 (see AUDIT.md #1).
+	// one, gets probability 0, which the calculations check for with Valid rather than rely on.
 	prob, _ := NewProbabilityFromDecimal(1 / odds.decimalOdds)
 	return prob
 }

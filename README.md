@@ -84,5 +84,3 @@ The last four solve for their parameter by bisection. A market needs two or more
 ```
 make test        # go test ./...
 ```
-
-`AUDIT.md` records an audit of the library (2026-10-23) and what has been fixed since.
